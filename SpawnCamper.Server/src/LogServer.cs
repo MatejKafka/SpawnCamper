@@ -39,22 +39,30 @@ public class LogServer(string pipeName) {
             _reader.Dispose();
         }
 
+        private enum MessageType {
+            ExitProcess,
+            CreateProcess,
+            ProcessStart,
+        };
+
         private async ValueTask ReadMessageAsync(CancellationToken token) {
             var timestamp = DateTime.FromFileTimeUtc((long) await _reader.ReadAsync<ulong>(token));
-            var type = await _reader.ReadAsync<ushort>(token);
+            var type = (MessageType) await _reader.ReadAsync<ushort>(token);
             switch (type) {
-                case 0:
+                case MessageType.ExitProcess:
                     eventCb(new ProcessExit(timestamp, _clientId, await _reader.ReadAsync<int>(token)));
                     break;
-                case 1:
+                case MessageType.CreateProcess:
+                    var childId = await _reader.ReadAsync<int>(token);
+                    var encoding = await _reader.ReadEncoding(token);
                     eventCb(new ProcessCreate(
                             timestamp,
                             _clientId,
-                            await _reader.ReadAsync<int>(token),
-                            await _reader.ReadString(Encoding.Unicode, token),
-                            await _reader.ReadString(Encoding.Unicode, token)));
+                            childId,
+                            await _reader.ReadString(encoding, token),
+                            await _reader.ReadString(encoding, token)));
                     break;
-                case 2:
+                case MessageType.ProcessStart:
                     eventCb(new ProcessStart(
                             timestamp,
                             _clientId,

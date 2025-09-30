@@ -20,6 +20,16 @@ internal sealed class LogReader(Stream stream) : IDisposable {
         return MemoryMarshal.Read<T>(_buffer);
     }
 
+    public async ValueTask<Encoding> ReadEncoding(CancellationToken token) {
+        var codePage = await ReadAsync<int>(token);
+        var encoding = CodePagesEncodingProvider.Instance.GetEncoding(codePage);
+        encoding ??= Encoding.GetEncoding(codePage);
+        if (encoding == null) {
+            throw new FormatException($"Unknown encoding passed by client: {codePage}");
+        }
+        return encoding;
+    }
+
     public async ValueTask<string?> ReadString(Encoding encoding, CancellationToken token) {
         var len = await ReadAsync<ulong>(token);
         if (len == unchecked((ulong) -1)) {

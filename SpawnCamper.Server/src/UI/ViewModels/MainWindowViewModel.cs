@@ -78,6 +78,15 @@ public class MainWindowViewModel : INotifyPropertyChanged {
         }
 
         _pendingParents[create.ChildId] = create.ProcessId;
+
+        // If the child process has already started (race condition: child's ProcessStart arrived before parent's CreateProcess),
+        // attach it to the parent now
+        if (_processes.TryGetValue(create.ChildId, out var childProcess)) {
+            var parent = GetOrCreateProcess(create.ProcessId);
+            EnsureProcessVisible(parent);
+            AttachChild(parent, childProcess);
+            _pendingParents.Remove(create.ChildId);
+        }
     }
 
     private void HandleStart(LogServer.ProcessStart start) {

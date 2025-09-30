@@ -50,13 +50,40 @@ public partial class MainWindow {
     private void StartServer() {
         _serverTask = Task.Run(async () => {
             try {
-                await _logServer.RunAsync(evt => _viewModel.HandleEvent(evt), _cts.Token);
+                await _logServer.RunAsync(evt => {
+                    LogEvent(evt);
+                    _viewModel.HandleEvent(evt);
+                }, _cts.Token);
             } catch (OperationCanceledException) {
                 // expected on shutdown
             } catch (Exception ex) {
                 Dispatcher.Invoke(() => ShowError(ex));
             }
         });
+    }
+
+    private static void LogEvent(LogServer.ProcessEvent e) {
+        void Log(string message) {
+            Console.Error.WriteLine($"[{e.ProcessId}] {message}");
+        }
+
+        switch (e) {
+            case LogServer.ProcessAttach:
+                Log("attach");
+                break;
+            case LogServer.ProcessDetach:
+                Log("detach");
+                break;
+            case LogServer.ProcessExit exit:
+                Log($"ExitProcess({exit.ExitCode})");
+                break;
+            case LogServer.ProcessCreate invocation:
+                Log($"CreateProcess({invocation.ChildId}, \"{invocation.CommandLine}\", \"{invocation.ApplicationName}\")");
+                break;
+            case LogServer.ProcessStart start:
+                Log($"{start}");
+                break;
+        }
     }
 
     private void ShowError(Exception exception) {
@@ -207,7 +234,7 @@ public partial class MainWindow {
         }
 
         ProcessTree.UpdateLayout();
-        if (FindTreeViewItem(target) is { } container) {
+        if (FindTreeViewItem(target) is {} container) {
             container.IsSelected = true;
             container.BringIntoView();
             container.Focus();

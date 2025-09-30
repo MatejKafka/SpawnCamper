@@ -41,11 +41,16 @@ public:
         write(env, env_size);
     }
 
-    void log_CreateProcess(DWORD pid, LPCWSTR lpApplicationName, LPCWSTR lpCommandLine) {
+    template <typename CharT>
+    void log_CreateProcess(DWORD pid, const CharT* lpApplicationName, const CharT* lpCommandLine) {
         std::unique_lock lock(m_pipe_mutex);
 
-        write_message_header(MessageType::CreateProcessW);
+        write_message_header(MessageType::CreateProcess_);
         write_scalar(pid);
+        // the code page may be set per-process, so we need to store the code page of the original process
+        //  so that the server can decode it
+        // 1200 = UTF-16LE
+        write_scalar(std::is_same_v<CharT, wchar_t> ? 1200 : GetACP());
         write_string(lpApplicationName);
         write_string(lpCommandLine);
     }
@@ -53,7 +58,7 @@ public:
 private:
     enum class MessageType : uint16_t {
         ExitProcess,
-        CreateProcessW,
+        CreateProcess_,
         ProcessStart,
     };
 

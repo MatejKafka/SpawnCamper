@@ -14,6 +14,7 @@ static std::unique_ptr<LoggerClient> g_logger;
 
 namespace Real {
     static auto CreateProcessW = ::CreateProcessW;
+    static auto CreateProcessA = ::CreateProcessA;
     static auto ExitProcess = ::ExitProcess;
 }
 
@@ -48,6 +49,36 @@ namespace Detours {
         return success;
     }
 
+    static BOOL WINAPI CreateProcessA(
+        _In_opt_ LPCSTR lpApplicationName,
+        _Inout_opt_ LPSTR lpCommandLine,
+        _In_opt_ LPSECURITY_ATTRIBUTES lpProcessAttributes,
+        _In_opt_ LPSECURITY_ATTRIBUTES lpThreadAttributes,
+        _In_ BOOL bInheritHandles,
+        _In_ DWORD dwCreationFlags,
+        _In_opt_ LPVOID lpEnvironment,
+        _In_opt_ LPCSTR lpCurrentDirectory,
+        _In_ LPSTARTUPINFOA lpStartupInfo,
+        _Out_ LPPROCESS_INFORMATION lpProcessInformation
+    ) {
+        auto success = DetourCreateProcessWithDllExA(
+            lpApplicationName, lpCommandLine, lpProcessAttributes, lpThreadAttributes, bInheritHandles, dwCreationFlags,
+            lpEnvironment, lpCurrentDirectory, lpStartupInfo, lpProcessInformation,
+            g_dll_path.c_str(), Real::CreateProcessA);
+
+        // preserve the correct last error
+        auto orig_err = GetLastError();
+
+        // only log the invocation after it finishes, so that we get the process ID
+        Utils::catch_abort([&] {
+            auto pid = success ? lpProcessInformation->dwProcessId : 0;
+            g_logger->log_CreateProcess(pid, lpApplicationName, lpCommandLine);
+        });
+
+        SetLastError(orig_err);
+        return success;
+    }
+
     static DECLSPEC_NORETURN VOID WINAPI ExitProcess(
         _In_ UINT uExitCode
     ) {
@@ -64,9 +95,11 @@ static void setup_detour(bool attach) {
 
     if (attach) {
         DetourAttach(&Real::CreateProcessW, Detours::CreateProcessW);
+        DetourAttach(&Real::CreateProcessA, Detours::CreateProcessA);
         DetourAttach(&Real::ExitProcess, Detours::ExitProcess);
     } else {
         DetourDetach(&Real::CreateProcessW, Detours::CreateProcessW);
+        DetourDetach(&Real::CreateProcessA, Detours::CreateProcessA);
         DetourDetach(&Real::ExitProcess, Detours::ExitProcess);
     }
 
