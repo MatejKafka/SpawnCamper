@@ -4,6 +4,12 @@ A simple Windows-only tool that shows full invocations of all processes that wer
 
 The took works by first spawning a named pipe server (written in C#) and then running the top-level process with an injected [Detours](https://github.com/microsoft/Detours/) hook. The hook connects to the server and dumps information from hooked Win32 functions and replicates itself into child processes by hooking `CreateProcess`.
 
+---
+
+**Disclaimer:** The hook itself (the C++ part) and the parser on the server side were written by hand, and should be pretty solid. The GUI was vibecoded with a somewhat minimal understanding of the WPF implementation, since I don't really enjoy implementing UIs – it seems to work, but it's fairly plausible that it'll fall apart at the first edge case.
+
+---
+
 ![Screenshot of SpawnCamper](./screenshot.png)
 
 ## Usage
