@@ -2,7 +2,7 @@
 
 A simple Windows-only tool that shows full invocations of all processes that were invoked in a specific tree, including command line, working directory and environment variables, and allows you to easily re-run a specific process under a debugger.
 
-The took works by first spawning a named pipe server (written in C#) and then running the top-level process with an injected [Detours](https://github.com/microsoft/Detours/) hook. The hook connects to the server and dumps information from hooked Win32 functions and replicates itself into child processes by hooking `CreateProcess`.
+The tool works by first spawning a named pipe server (written in C#) and then running the top-level process with an injected [Detours](https://github.com/microsoft/Detours/) hook. The hook connects to the server and dumps information from hooked Win32 functions and replicates itself into child processes by hooking `CreateProcess`.
 
 ---
 
