@@ -1,6 +1,14 @@
 Set-StrictMode -Version 3
 $ErrorActionPreference = "Stop"
 
+# resolve real path in case this file is symlinked
+$Path = Get-Item $PSCommandPath
+while ($Path.Target) {
+    $Path = Get-Item ([System.IO.Path]::Combine($Path.Directory, @($Path.Target)[0]))
+}
+$PSCommandPath = $Path.FullName
+$PSScriptRoot = $Path.Directory.FullName
+
 if (Test-Path \\.\\pipe\\SpawnCamper) {
 	Write-Host "SpawnCamper GUI is already running, connecting to the existing instance..."
 } else {
