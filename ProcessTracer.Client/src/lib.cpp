@@ -5,6 +5,7 @@
 
 #include "Win32.hpp"
 #include "LoggerClient.hpp"
+#include "Utils.hpp"
 
 static std::string g_dll_path;
 static std::unique_ptr<LoggerClient> g_logger;
@@ -13,21 +14,6 @@ namespace Real {
     static auto CreateProcessW = ::CreateProcessW;
     static auto ExitProcess = ::ExitProcess;
 }
-
-/// Helper function that aborts the process when an exception is thrown from our code.
-auto catch_abort(auto fn) {
-    // ReSharper disable once CppDFAUnreachableCode
-    try {
-        return fn();
-    } catch (const std::exception& e) {
-        fprintf(stderr, "ProcessTracer ERROR: %s\n", e.what());
-        std::abort();
-    } catch (...) {
-        std::abort();
-    }
-}
-
-#define CATCH_ABORT(fn) catch_abort([&] { return fn; })
 
 namespace Detours {
     static BOOL WINAPI CreateProcessW(
@@ -42,44 +28,18 @@ namespace Detours {
         _In_ LPSTARTUPINFOW lpStartupInfo,
         _Out_ LPPROCESS_INFORMATION lpProcessInformation
     ) {
-        auto orig_err = GetLastError();
-
-        // if we just left lpEnvironment at NULL, we'd risk a race condition where the environment could change
-        //  between the point where we read it and where CreateProcess does
-        auto process_env = lpEnvironment ? nullptr : CATCH_ABORT(Win32::GetEnvironmentStringsW());
-        if (!lpEnvironment) {
-            dwCreationFlags |= CREATE_UNICODE_ENVIRONMENT;
-            lpEnvironment = process_env.get();
-        }
-
-        // same for the working directory
-        auto working_dir = lpCurrentDirectory
-                               ? std::nullopt
-                               : std::optional{CATCH_ABORT(Win32::GetCurrentDirectoryW())};
-        if (!lpCurrentDirectory) {
-            lpCurrentDirectory = working_dir.value().c_str();
-        }
-
         auto success = DetourCreateProcessWithDllExW(
             lpApplicationName, lpCommandLine, lpProcessAttributes, lpThreadAttributes, bInheritHandles, dwCreationFlags,
             lpEnvironment, lpCurrentDirectory, lpStartupInfo, lpProcessInformation,
             g_dll_path.c_str(), Real::CreateProcessW);
 
-        if (!success) {
-            // preserve the correct last error
-            orig_err = GetLastError();
-        }
+        // preserve the correct last error
+        auto orig_err = GetLastError();
 
         // only log the invocation after it finishes, so that we get the process ID
-        catch_abort([&] {
+        Utils::catch_abort([&] {
             auto pid = success ? lpProcessInformation->dwProcessId : 0;
-            if (dwCreationFlags & CREATE_UNICODE_ENVIRONMENT) {
-                g_logger->log_CreateProcess(lpApplicationName, lpCommandLine, lpCurrentDirectory,
-                                            (wchar_t*)lpEnvironment, pid);
-            } else {
-                g_logger->log_CreateProcess(lpApplicationName, lpCommandLine, lpCurrentDirectory,
-                                            (char*)lpEnvironment, pid);
-            }
+            g_logger->log_CreateProcess(pid, lpApplicationName, lpCommandLine);
         });
 
         SetLastError(orig_err);
@@ -89,7 +49,7 @@ namespace Detours {
     static DECLSPEC_NORETURN VOID WINAPI ExitProcess(
         _In_ UINT uExitCode
     ) {
-        catch_abort([&] {
+        Utils::catch_abort([&] {
             g_logger->log_ExitProcess(uExitCode);
         });
         Real::ExitProcess(uExitCode);
@@ -111,6 +71,13 @@ static void setup_detour(bool attach) {
     DetourTransactionCommit();
 }
 
+static void log_attach() {
+    auto exe_path = Win32::GetModuleFileNameW(nullptr);
+    auto working_dir = Win32::GetCurrentDirectoryW();
+    auto env = Win32::GetEnvironmentStringsW();
+    g_logger->log_new_process(exe_path.c_str(), GetCommandLineW(), working_dir.c_str(), env.get());
+}
+
 BOOL WINAPI DllMain(HINSTANCE hInst, DWORD dwReason, LPVOID) {
     if (DetourIsHelperProcess()) {
         return TRUE;
@@ -122,9 +89,11 @@ BOOL WINAPI DllMain(HINSTANCE hInst, DWORD dwReason, LPVOID) {
             // disable DLL_THREAD_ATTACH/DLL_THREAD_DETACH callbacks, we don't need them
             DisableThreadLibraryCalls(hInst);
 
-            catch_abort([&] {
+            Utils::catch_abort([&] {
                 g_logger = std::make_unique<LoggerClient>(LR"(\\.\pipe\ProcessTracer-Server)");
                 g_dll_path = Win32::GetModuleFileNameW(hInst).string();
+                // send process information to the logger server
+                log_attach();
             });
 
             setup_detour(true);

@@ -2,6 +2,8 @@
 #include <detours.h>
 #include <iostream>
 #include <string>
+
+#include "Utils.hpp"
 #include "Win32.hpp"
 
 static const wchar_t* find_argv1(const wchar_t* cmd_line) {
@@ -37,7 +39,7 @@ static const wchar_t* find_argv1(const wchar_t* cmd_line) {
 
 void real_main() {
     auto exe_path = Win32::GetModuleFileNameW();
-    exe_path.replace_filename(L"InjectedLib64.dll");
+    exe_path.replace_filename(L"hook64.dll");
     // Detours takes a `char*` even in the W variant
     auto dll_path_str = exe_path.string();
 
@@ -57,7 +59,7 @@ void real_main() {
         nullptr, nullptr, false, 0, nullptr, nullptr,
         &startup_info, &process_info, dll_path_str.c_str(), nullptr);
     if (!success) {
-        Win32::propagate_win32_error();
+        throw Win32::Win32Error{};
     }
 
     Win32::WaitForSingleObject(process_info.hProcess);
@@ -65,10 +67,7 @@ void real_main() {
 }
 
 int main() {
-    try {
+    Utils::catch_abort([&] {
         real_main();
-    } catch (const std::exception& e) {
-        std::cerr << "ERROR: " << e.what() << std::endl;
-        return 1;
-    }
+    });
 }

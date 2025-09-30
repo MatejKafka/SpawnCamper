@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace ProcessTracer.Server;
@@ -33,15 +34,8 @@ internal sealed class LogReader(Stream stream) : IDisposable {
         return encoding.GetString(_buffer, 0, (int) len);
     }
 
-    public async ValueTask<Dictionary<string, string>> ReadEnvironmentBlockAsync(CancellationToken token) {
-        var codePage = await ReadAsync<uint>(token);
-        var encoding = CodePagesEncodingProvider.Instance.GetEncoding((int) codePage);
-        encoding ??= Encoding.GetEncoding((int) codePage);
-
-        if (encoding == null) {
-            throw new FormatException($"Unknown code page for an environment block: {codePage}");
-        }
-
+    public async ValueTask<Dictionary<string, string>> ReadEnvironmentBlockAsync(
+            Encoding encoding, CancellationToken token) {
         // this is a horrible hack, but doing this properly is even more horrible (I tried for ~2 hours and mostly failed)
         // we decode the whole buffer, including the null terminators, and hope that the encoding leaves them alone
         var str = await ReadString(encoding, token);

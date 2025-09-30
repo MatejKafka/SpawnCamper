@@ -1,25 +1,35 @@
-﻿using System.IO.Pipes;
+﻿using System.IO;
+using System.IO.Pipes;
 using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace ProcessTracer.Server;
 
 public class LogServer(string pipeName) {
-    public abstract record ProcessEvent(int ProcessId);
+    public abstract record ProcessEvent(DateTime Timestamp, int ProcessId);
 
-    public record ProcessAttach(int ProcessId) : ProcessEvent(ProcessId);
+    public record ProcessAttach(DateTime Timestamp, int ProcessId) : ProcessEvent(Timestamp, ProcessId);
 
-    public record ProcessDetach(int ProcessId) : ProcessEvent(ProcessId);
+    public record ProcessDetach(DateTime Timestamp, int ProcessId) : ProcessEvent(Timestamp, ProcessId);
 
-    public record ProcessExit(int ProcessId, int ExitCode) : ProcessEvent(ProcessId);
+    public record ProcessExit(DateTime Timestamp, int ProcessId, int ExitCode) : ProcessEvent(Timestamp, ProcessId);
 
-    public record ProcessInvocation(
+    /// Call to CreateProcess.
+    public record ProcessCreate(
+            DateTime Timestamp,
             int ProcessId,
             int ChildId,
             string? ApplicationName,
-            string? CommandLine,
+            string? CommandLine) : ProcessEvent(Timestamp, ProcessId);
+
+    /// Log from a started-up process.
+    public record ProcessStart(
+            DateTime Timestamp,
+            int ProcessId,
+            string ApplicationName,
+            string CommandLine,
             string WorkingDirectory,
-            Dictionary<string, string> Environment) : ProcessEvent(ProcessId);
+            Dictionary<string, string> Environment) : ProcessEvent(Timestamp, ProcessId);
 
     private class Client(NamedPipeServerStream pipe, Action<ProcessEvent> eventCb) : IDisposable {
         private readonly LogReader _reader = new(pipe);
@@ -30,20 +40,28 @@ public class LogServer(string pipeName) {
         }
 
         private async ValueTask ReadMessageAsync(CancellationToken token) {
+            var timestamp = DateTime.FromFileTimeUtc((long) await _reader.ReadAsync<ulong>(token));
             var type = await _reader.ReadAsync<ushort>(token);
             switch (type) {
                 case 0:
-                    eventCb(new ProcessExit(_clientId, await _reader.ReadAsync<int>(token)));
+                    eventCb(new ProcessExit(timestamp, _clientId, await _reader.ReadAsync<int>(token)));
                     break;
                 case 1:
-                    eventCb(new ProcessInvocation(
+                    eventCb(new ProcessCreate(
+                            timestamp,
                             _clientId,
                             await _reader.ReadAsync<int>(token),
                             await _reader.ReadString(Encoding.Unicode, token),
-                            await _reader.ReadString(Encoding.Unicode, token),
-                            // the client always sets the working directory
+                            await _reader.ReadString(Encoding.Unicode, token)));
+                    break;
+                case 2:
+                    eventCb(new ProcessStart(
+                            timestamp,
+                            _clientId,
                             (await _reader.ReadString(Encoding.Unicode, token))!,
-                            await _reader.ReadEnvironmentBlockAsync(token)));
+                            (await _reader.ReadString(Encoding.Unicode, token))!,
+                            (await _reader.ReadString(Encoding.Unicode, token))!,
+                            await _reader.ReadEnvironmentBlockAsync(Encoding.Unicode, token)));
                     break;
                 default:
                     throw new SwitchExpressionException(type);
@@ -51,7 +69,7 @@ public class LogServer(string pipeName) {
         }
 
         public async Task RunAsync(CancellationToken token) {
-            eventCb(new ProcessAttach(_clientId));
+            eventCb(new ProcessAttach(DateTime.UtcNow, _clientId));
             while (pipe.IsConnected) {
                 try {
                     await ReadMessageAsync(token);
@@ -59,7 +77,7 @@ public class LogServer(string pipeName) {
                     break;
                 }
             }
-            eventCb(new ProcessDetach(_clientId));
+            eventCb(new ProcessDetach(DateTime.UtcNow, _clientId));
         }
     }
 

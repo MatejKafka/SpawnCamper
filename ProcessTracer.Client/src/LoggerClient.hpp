@@ -23,35 +23,38 @@ public:
     void log_ExitProcess(DWORD exit_code) {
         std::unique_lock lock(m_pipe_mutex);
 
-        write_scalar((uint16_t)MessageType::ExitProcess);
+        write_message_header(MessageType::ExitProcess);
         write_scalar(exit_code);
     }
 
-    template<typename EnvCharT>
-    void log_CreateProcess(LPCWSTR lpApplicationName, LPCWSTR lpCommandLine, LPCWSTR lpCurrentDirectory,
-                           const EnvCharT* lpEnvironment, DWORD pid) {
+    void log_new_process(LPCWSTR exe_path, LPCWSTR cmd_line, LPCWSTR working_dir, LPCWSTR env) {
         std::unique_lock lock(m_pipe_mutex);
 
-        write_scalar((uint16_t)MessageType::CreateProcessW);
+        write_message_header(MessageType::ProcessStart);
+        write_string(exe_path);
+        write_string(cmd_line);
+        write_string(working_dir);
+
+        // write environment block
+        auto env_size = peb_size(env);
+        write_scalar(env_size);
+        write(env, env_size);
+    }
+
+    void log_CreateProcess(DWORD pid, LPCWSTR lpApplicationName, LPCWSTR lpCommandLine) {
+        std::unique_lock lock(m_pipe_mutex);
+
+        write_message_header(MessageType::CreateProcessW);
         write_scalar(pid);
         write_string(lpApplicationName);
         write_string(lpCommandLine);
-        write_string(lpCurrentDirectory);
-
-        // write environment block, in the original encoding
-        auto env_size = peb_size(lpEnvironment);
-        // the code page may be set per-process, so we need to store the code page of the original process
-        //  so that the server can decode it
-        // 1200 = UTF-16LE
-        write_scalar(std::is_same_v<EnvCharT, wchar_t> ? 1200 : GetACP());
-        write_scalar(env_size);
-        write(lpEnvironment, env_size);
     }
 
 private:
     enum class MessageType : uint16_t {
         ExitProcess,
         CreateProcessW,
+        ProcessStart,
     };
 
     // ReSharper disable once CppMemberFunctionMayBeConst
@@ -68,6 +71,17 @@ private:
 
     void write_scalar(auto value) {
         write(&value, sizeof(value));
+    }
+
+    void write_timestamp() {
+        FILETIME ft;
+        ::GetSystemTimePreciseAsFileTime(&ft);
+        write_scalar((uint64_t)ft.dwHighDateTime << 32 | (uint64_t)ft.dwLowDateTime);
+    }
+
+    void write_message_header(MessageType msg_type) {
+        write_timestamp();
+        write_scalar(msg_type);
     }
 
     template<typename CharT>
@@ -101,14 +115,17 @@ private:
             }
 
             auto error = ::GetLastError();
+            if (error == ERROR_FILE_NOT_FOUND) {
+                throw Win32::Win32Error{error, "ProcessTracer server does not seem to be running"};
+            }
             if (error != ERROR_PIPE_BUSY) {
-                Win32::propagate_win32_error(error);
+                throw Win32::Win32Error{error};
             }
 
             // the pipe exists, but all instances are busy; this can intermittently happen just after another client
             //  connects to the server, before it services the connection and reopens another instance of the pipe server
             if (!WaitNamedPipeW(pipe_name.c_str(), NMPWAIT_WAIT_FOREVER)) {
-                Win32::propagate_win32_error();
+                throw Win32::Win32Error{};
             }
         }
     }

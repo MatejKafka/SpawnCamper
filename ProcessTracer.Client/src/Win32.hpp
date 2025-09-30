@@ -8,19 +8,12 @@
 
 namespace Win32 {
     struct Win32Error final : std::system_error {
-        explicit Win32Error(DWORD error_code) : std::system_error((int)error_code, std::system_category()) {}
-    };
+        explicit Win32Error(DWORD error_code = GetLastError())
+            : std::system_error((int)error_code, std::system_category()) {}
 
-    // in the hook, we want to loudly abort on any Win32 exception
-    [[noreturn]] inline void propagate_win32_error(DWORD error = GetLastError()) {
-        #ifdef WIN32_EXCEPTIONS
-        throw Win32Error{error};
-        #else
-        auto e = Win32Error{error};
-        fprintf(stderr, "ProcessTracer ERROR: %s\n", e.what());
-        std::abort();
-        #endif
-    }
+        explicit Win32Error(DWORD error_code, const char* message)
+            : std::system_error((int)error_code, std::system_category(), message) {}
+    };
 
     inline std::filesystem::path GetModuleFileNameW(HMODULE hModule = nullptr) {
         auto result = std::wstring{};
@@ -30,7 +23,7 @@ namespace Win32 {
             DWORD actual_length = ::GetModuleFileNameW(hModule, result.data(), (DWORD)result.size());
 
             if (actual_length == 0) {
-                propagate_win32_error();
+                throw Win32Error{};
             }
 
             if (actual_length < result.size()) {
@@ -52,7 +45,7 @@ namespace Win32 {
             DWORD actual_length = ::GetCurrentDirectoryW((DWORD)result.size(), result.data());
 
             if (actual_length == 0) {
-                propagate_win32_error();
+                throw Win32Error{};
             }
 
             if (actual_length < result.size()) {
@@ -84,7 +77,7 @@ namespace Win32 {
             hTemplateFile
         );
         if (handle == INVALID_HANDLE_VALUE) {
-            propagate_win32_error();
+            throw Win32Error{};
         }
         return handle;
     }
@@ -100,14 +93,14 @@ namespace Win32 {
 
     inline void CloseHandle(HANDLE handle) {
         if (!::CloseHandle(handle)) {
-            propagate_win32_error();
+            throw Win32Error{};
         }
     }
 
     inline size_t WriteFile(HANDLE handle, std::span<const std::byte> buffer, LPOVERLAPPED overlapped = nullptr) {
         DWORD bytes_written;
         if (!::WriteFile(handle, buffer.data(), (DWORD)buffer.size_bytes(), &bytes_written, overlapped)) {
-            propagate_win32_error();
+            throw Win32Error{};
         }
         return bytes_written;
     }
@@ -120,14 +113,14 @@ namespace Win32 {
             case WAIT_TIMEOUT:
                 return false;
             default:
-                propagate_win32_error();
+                throw Win32Error{};
         }
     }
 
     inline DWORD GetExitCodeProcess(HANDLE handle) {
         DWORD exit_code;
         if (!::GetExitCodeProcess(handle, &exit_code)) {
-            propagate_win32_error();
+            throw Win32Error{};
         }
         return exit_code;
     }
@@ -135,7 +128,7 @@ namespace Win32 {
     inline HANDLE GetStdHandle(DWORD std_handle) {
         auto handle = ::GetStdHandle(std_handle);
         if (handle == INVALID_HANDLE_VALUE) {
-            propagate_win32_error();
+            throw Win32Error{};
         }
         return handle;
     }
@@ -143,7 +136,7 @@ namespace Win32 {
     inline auto GetEnvironmentStringsW() {
         auto env = ::GetEnvironmentStringsW();
         if (env == nullptr) {
-            propagate_win32_error();
+            throw Win32Error{};
         }
         auto deleter = [](wchar_t* p) { FreeEnvironmentStringsW(p); };
         return std::unique_ptr<wchar_t, decltype(deleter)>{env, deleter};
