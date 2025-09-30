@@ -19,9 +19,9 @@ if (Test-Path $PSScriptRoot\bin) {
         Write-Host "Building hook for $Arch..."
         & $DevShellPath -Arch $Arch -SkipAutomaticLocation
 
-        $BuildDir = ".\ProcessTracer.Client\cmake-build-release-$Arch"
+        $BuildDir = ".\SpawnCamper.Client\cmake-build-release-$Arch"
         if (-not (Test-Path $BuildDir)) {
-            cmake -S .\ProcessTracer.Client -B $BuildDir -DCMAKE_BUILD_TYPE=Release -G Ninja
+            cmake -S .\SpawnCamper.Client -B $BuildDir -DCMAKE_BUILD_TYPE=Release -G Ninja
         }
         cmake --build $BuildDir
     }
@@ -30,7 +30,7 @@ if (Test-Path $PSScriptRoot\bin) {
 pwsh -NoProfile -WorkingDirectory $PSScriptRoot {
     Write-Host ""
     Write-Host "Building server..."
-    cd .\ProcessTracer.Server
+    cd .\SpawnCamper.Server
     dotnet publish
 }
 

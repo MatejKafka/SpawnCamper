@@ -2,7 +2,7 @@
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 
-namespace ProcessTracer.Server;
+namespace SpawnCamper.Server;
 
 internal static partial class NamedPipeServerStreamExtensions {
     [LibraryImport("kernel32.dll", SetLastError = true)]

@@ -2,7 +2,7 @@
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace ProcessTracer.Server;
+namespace SpawnCamper.Server;
 
 internal sealed class LogReader(Stream stream) : IDisposable {
     private byte[] _buffer = new byte[1024];

@@ -1,6 +1,6 @@
-﻿using ProcessTracer.Server.UI;
+﻿using SpawnCamper.Server.UI;
 
-namespace ProcessTracer.Server;
+namespace SpawnCamper.Server;
 
 public static class Program {
     [STAThread]

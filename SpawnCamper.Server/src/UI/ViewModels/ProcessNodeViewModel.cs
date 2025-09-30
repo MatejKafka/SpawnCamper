@@ -8,7 +8,7 @@ using System.Text;
 using System.Windows;
 using System.Windows.Input;
 
-namespace ProcessTracer.Server.UI.ViewModels;
+namespace SpawnCamper.Server.UI.ViewModels;
 
 public class ProcessNodeViewModel : INotifyPropertyChanged {
     private readonly Dictionary<string, string> _environmentMap = new(StringComparer.OrdinalIgnoreCase);

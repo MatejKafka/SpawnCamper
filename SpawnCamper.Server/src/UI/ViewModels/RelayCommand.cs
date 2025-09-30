@@ -1,7 +1,7 @@
 using System;
 using System.Windows.Input;
 
-namespace ProcessTracer.Server.UI.ViewModels;
+namespace SpawnCamper.Server.UI.ViewModels;
 
 public class RelayCommand : ICommand {
     private readonly Action _execute;

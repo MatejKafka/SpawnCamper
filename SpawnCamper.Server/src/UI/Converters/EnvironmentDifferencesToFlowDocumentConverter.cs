@@ -6,9 +6,9 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Media;
-using ProcessTracer.Server.UI.ViewModels;
+using SpawnCamper.Server.UI.ViewModels;
 
-namespace ProcessTracer.Server.UI.Converters;
+namespace SpawnCamper.Server.UI.Converters;
 
 public class EnvironmentDifferencesToFlowDocumentConverter : IValueConverter {
     public Brush? AddedForeground { get; set; }

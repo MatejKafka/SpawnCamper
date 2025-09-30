@@ -12,10 +12,10 @@ namespace Utils {
         try {
             return fn();
         } catch (const std::exception& e) {
-            fprintf(stderr, "ProcessTracer ERROR: %s\n", e.what());
+            fprintf(stderr, "SpawnCamper ERROR: %s\n", e.what());
             std::abort();
         } catch (...) {
-            fprintf(stderr, "ProcessTracer ERROR: unknown error\n");
+            fprintf(stderr, "SpawnCamper ERROR: unknown error\n");
             std::abort();
         }
     }

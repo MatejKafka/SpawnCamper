@@ -31,7 +31,7 @@ static const wchar_t* find_argv1(const wchar_t* cmd_line) {
         }
     }
 
-    // skip whitespace before first arg
+    // skip whitespace before the first arg
     while (*it != 0 && (*it == L' ' || *it == L'\t')) it++;
 
     return it;

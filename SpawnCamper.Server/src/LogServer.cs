@@ -3,7 +3,7 @@ using System.IO.Pipes;
 using System.Runtime.CompilerServices;
 using System.Text;
 
-namespace ProcessTracer.Server;
+namespace SpawnCamper.Server;
 
 public class LogServer(string pipeName) {
     public abstract record ProcessEvent(DateTime Timestamp, int ProcessId);

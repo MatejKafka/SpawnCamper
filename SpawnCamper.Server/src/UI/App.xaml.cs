@@ -1,6 +1,6 @@
 using System.Windows;
 
-namespace ProcessTracer.Server.UI;
+namespace SpawnCamper.Server.UI;
 
 public partial class App {
 	private MainWindow? _mainWindow;

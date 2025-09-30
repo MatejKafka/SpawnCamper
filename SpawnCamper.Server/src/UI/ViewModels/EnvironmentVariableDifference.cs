@@ -1,4 +1,4 @@
-namespace ProcessTracer.Server.UI.ViewModels;
+namespace SpawnCamper.Server.UI.ViewModels;
 
 public enum EnvironmentVariableDiffKind {
     Added,

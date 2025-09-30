@@ -3,7 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 
-namespace ProcessTracer.Server.UI.Converters;
+namespace SpawnCamper.Server.UI.Converters;
 
 public class TreeLevelToIndentConverter : IValueConverter {
     public double IndentSize {get; set;} = 16d;

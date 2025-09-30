@@ -7,6 +7,8 @@
 #include "LoggerClient.hpp"
 #include "Utils.hpp"
 
+constexpr auto SERVER_PIPE_NAME = LR"(\\.\pipe\SpawnCamper)";
+
 static std::string g_dll_path;
 static std::unique_ptr<LoggerClient> g_logger;
 
@@ -90,7 +92,7 @@ BOOL WINAPI DllMain(HINSTANCE hInst, DWORD dwReason, LPVOID) {
             DisableThreadLibraryCalls(hInst);
 
             Utils::catch_abort([&] {
-                g_logger = std::make_unique<LoggerClient>(LR"(\\.\pipe\ProcessTracer-Server)");
+                g_logger = std::make_unique<LoggerClient>(SERVER_PIPE_NAME);
                 g_dll_path = Win32::GetModuleFileNameW(hInst).string();
                 // send process information to the logger server
                 log_attach();

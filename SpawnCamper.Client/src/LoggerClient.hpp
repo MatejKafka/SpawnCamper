@@ -116,7 +116,7 @@ private:
 
             auto error = ::GetLastError();
             if (error == ERROR_FILE_NOT_FOUND) {
-                throw Win32::Win32Error{error, "ProcessTracer server does not seem to be running"};
+                throw Win32::Win32Error{error, "SpawnCamper server does not seem to be running"};
             }
             if (error != ERROR_PIPE_BUSY) {
                 throw Win32::Win32Error{error};

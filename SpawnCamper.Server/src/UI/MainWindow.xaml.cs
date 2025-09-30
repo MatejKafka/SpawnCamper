@@ -1,13 +1,13 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using ProcessTracer.Server.UI.ViewModels;
+using SpawnCamper.Server.UI.ViewModels;
 
-namespace ProcessTracer.Server.UI;
+namespace SpawnCamper.Server.UI;
 
 public partial class MainWindow {
     private readonly MainWindowViewModel _viewModel;
-    private readonly LogServer _logServer = new("ProcessTracer-Server");
+    private readonly LogServer _logServer = new("SpawnCamper");
     private readonly CancellationTokenSource _cts = new();
     private Task? _serverTask;
 
@@ -62,7 +62,7 @@ public partial class MainWindow {
     private void ShowError(Exception exception) {
         MessageBox.Show(this,
                 $"An error occurred while processing log events:\n{exception.Message}",
-                "Process Tracer Server",
+                "SpawnCamper.Server",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
     }

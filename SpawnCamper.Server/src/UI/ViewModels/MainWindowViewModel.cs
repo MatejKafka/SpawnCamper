@@ -2,7 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows.Threading;
 
-namespace ProcessTracer.Server.UI.ViewModels;
+namespace SpawnCamper.Server.UI.ViewModels;
 
 public class MainWindowViewModel : INotifyPropertyChanged {
     private readonly Dispatcher _dispatcher;

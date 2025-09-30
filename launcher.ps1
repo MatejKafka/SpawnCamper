@@ -1,11 +1,11 @@
-if (Test-Path \\.\\pipe\\ProcessTracer-Server) {
-	Write-Host "ProcessTracer GUI is already running, connecting to the existing instance..."
+if (Test-Path \\.\\pipe\\SpawnCamper) {
+	Write-Host "SpawnCamper GUI is already running, connecting to the existing instance..."
 } else {
-    Start-Process $PSScriptRoot\server\process-tracer-server.exe
+    Start-Process $PSScriptRoot\server\SpawnCamperServer.exe
     # wait for the named pipe to open
-    while (-not (Test-Path \\.\\pipe\\ProcessTracer-Server)) {
+    while (-not (Test-Path \\.\\pipe\\SpawnCamper)) {
         sleep 0.1
     }
 }
 
-& $PSScriptRoot\process-tracer.exe @Args
+& $PSScriptRoot\SpawnCamper.exe @Args
