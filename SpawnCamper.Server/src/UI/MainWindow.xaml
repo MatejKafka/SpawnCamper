@@ -541,7 +541,7 @@
                         <!-- Visual Studio Button -->
                         <Button Content="Visual Studio"
                                 Command="{Binding LaunchInVisualStudioCommand}"
-                                Background="#E8E8F4"
+                                Background="#C8C8E5"
                                 BorderBrush="#CCCCCC"
                                 BorderThickness="1"
                                 Padding="8,4"
