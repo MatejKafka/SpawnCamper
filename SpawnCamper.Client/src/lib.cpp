@@ -16,6 +16,7 @@ namespace Real {
     static auto CreateProcessW = ::CreateProcessW;
     static auto CreateProcessA = ::CreateProcessA;
     static auto ExitProcess = ::ExitProcess;
+    static auto TerminateProcess = ::TerminateProcess;
 }
 
 namespace Detours {
@@ -87,6 +88,20 @@ namespace Detours {
         });
         Real::ExitProcess(uExitCode);
     }
+
+    static BOOL WINAPI TerminateProcess(
+        _In_ HANDLE hProcess,
+        _In_ UINT uExitCode
+    ) {
+        // some processes (like Git's sh.exe, and probably anything using MSYS2)
+        //  kill themselves using `TerminateProcess` instead of using `ExitProcess`
+        if (hProcess == GetCurrentProcess()) {
+            Utils::catch_abort([&] {
+                g_logger->log_ExitProcess(uExitCode);
+            });
+        }
+        return Real::TerminateProcess(hProcess, uExitCode);
+    }
 }
 
 static void setup_detour(bool attach) {
@@ -97,10 +112,12 @@ static void setup_detour(bool attach) {
         DetourAttach(&Real::CreateProcessW, Detours::CreateProcessW);
         DetourAttach(&Real::CreateProcessA, Detours::CreateProcessA);
         DetourAttach(&Real::ExitProcess, Detours::ExitProcess);
+        DetourAttach(&Real::TerminateProcess, Detours::TerminateProcess);
     } else {
         DetourDetach(&Real::CreateProcessW, Detours::CreateProcessW);
         DetourDetach(&Real::CreateProcessA, Detours::CreateProcessA);
         DetourDetach(&Real::ExitProcess, Detours::ExitProcess);
+        DetourDetach(&Real::TerminateProcess, Detours::TerminateProcess);
     }
 
     DetourTransactionCommit();
