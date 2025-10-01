@@ -24,7 +24,8 @@ public:
         std::unique_lock lock(m_pipe_mutex);
 
         write_message_header(MessageType::ExitProcess);
-        write_scalar(exit_code);
+        write<uint32_t>(exit_code);
+        write<uint32_t>(TERMINATOR_MAGIC);
     }
 
     void log_new_process(LPCWSTR exe_path, LPCWSTR cmd_line, LPCWSTR working_dir, LPCWSTR env) {
@@ -34,11 +35,8 @@ public:
         write_string(exe_path);
         write_string(cmd_line);
         write_string(working_dir);
-
-        // write environment block
-        auto env_size = peb_size(env);
-        write_scalar(env_size);
-        write(env, env_size);
+        write_env_block(env);
+        write<uint32_t>(TERMINATOR_MAGIC);
     }
 
     template <typename CharT>
@@ -46,16 +44,18 @@ public:
         std::unique_lock lock(m_pipe_mutex);
 
         write_message_header(MessageType::CreateProcess_);
-        write_scalar(pid);
+        write<uint32_t>(pid);
         // the code page may be set per-process, so we need to store the code page of the original process
         //  so that the server can decode it
         // 1200 = UTF-16LE
-        write_scalar(std::is_same_v<CharT, wchar_t> ? 1200 : GetACP());
+        write<uint32_t>(std::is_same_v<CharT, wchar_t> ? 1200 : GetACP());
         write_string(lpApplicationName);
         write_string(lpCommandLine);
+        write<uint32_t>(TERMINATOR_MAGIC);
     }
 
 private:
+    static constexpr uint32_t TERMINATOR_MAGIC = 0x012345678;
     enum class MessageType : uint16_t {
         ExitProcess,
         CreateProcess_,
@@ -74,31 +74,39 @@ private:
         write(std::span{(const std::byte*)buffer, size});
     }
 
-    void write_scalar(auto value) {
+    // force the caller to explicitly specify the type
+    template<typename T>
+    void write(std::type_identity_t<T> value) requires std::is_scalar_v<T> {
         write(&value, sizeof(value));
     }
 
     void write_timestamp() {
         FILETIME ft;
         ::GetSystemTimePreciseAsFileTime(&ft);
-        write_scalar((uint64_t)ft.dwHighDateTime << 32 | (uint64_t)ft.dwLowDateTime);
+        write<uint64_t>((uint64_t)ft.dwHighDateTime << 32 | (uint64_t)ft.dwLowDateTime);
     }
 
     void write_message_header(MessageType msg_type) {
         write_timestamp();
-        write_scalar(msg_type);
+        write<MessageType>(msg_type);
     }
 
     template<typename CharT>
     void write_string(const CharT* str) {
         if (str == nullptr) {
             // 0xff..ff = nullptr
-            write_scalar((size_t)-1);
+            write<uint64_t>((size_t)-1);
             return;
         }
         auto len = std::char_traits<CharT>::length(str) * sizeof(CharT);
-        write_scalar(len);
+        write<uint64_t>(len);
         write(str, len);
+    }
+
+    void write_env_block(const wchar_t* env_block) {
+        auto env_size = peb_size(env_block);
+        write<uint64_t>(env_size);
+        write(env_block, env_size);
     }
 
     /// Returns the size in bytes of a process environment block, excluding the final null terminator.

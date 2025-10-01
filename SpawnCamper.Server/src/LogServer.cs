@@ -26,7 +26,7 @@ public class LogServer(string pipeName) {
     public record ProcessStart(
             DateTime Timestamp,
             int ProcessId,
-            string ApplicationName,
+            string ExePath,
             string CommandLine,
             string WorkingDirectory,
             Dictionary<string, string> Environment) : ProcessEvent(Timestamp, ProcessId);
@@ -49,28 +49,30 @@ public class LogServer(string pipeName) {
             var timestamp = DateTime.FromFileTimeUtc((long) await _reader.ReadAsync<ulong>(token));
             var type = (MessageType) await _reader.ReadAsync<ushort>(token);
             switch (type) {
-                case MessageType.ExitProcess:
-                    eventCb(new ProcessExit(timestamp, _clientId, await _reader.ReadAsync<int>(token)));
+                case MessageType.ExitProcess: {
+                    var exitCode = await _reader.ReadAsync<int>(token);
+                    await _reader.VerifyTerminator(token);
+                    eventCb(new ProcessExit(timestamp, _clientId, exitCode));
                     break;
-                case MessageType.CreateProcess:
+                }
+                case MessageType.CreateProcess: {
                     var childId = await _reader.ReadAsync<int>(token);
                     var encoding = await _reader.ReadEncoding(token);
-                    eventCb(new ProcessCreate(
-                            timestamp,
-                            _clientId,
-                            childId,
-                            await _reader.ReadString(encoding, token),
-                            await _reader.ReadString(encoding, token)));
+                    var appName = await _reader.ReadString(encoding, token);
+                    var cmdLine = await _reader.ReadString(encoding, token);
+                    await _reader.VerifyTerminator(token);
+                    eventCb(new ProcessCreate(timestamp, _clientId, childId, appName, cmdLine));
                     break;
-                case MessageType.ProcessStart:
-                    eventCb(new ProcessStart(
-                            timestamp,
-                            _clientId,
-                            (await _reader.ReadString(Encoding.Unicode, token))!,
-                            (await _reader.ReadString(Encoding.Unicode, token))!,
-                            (await _reader.ReadString(Encoding.Unicode, token))!,
-                            await _reader.ReadEnvironmentBlockAsync(Encoding.Unicode, token)));
+                }
+                case MessageType.ProcessStart: {
+                    var exePath = (await _reader.ReadString(Encoding.Unicode, token))!;
+                    var cmdLine = (await _reader.ReadString(Encoding.Unicode, token))!;
+                    var workingDirectory = (await _reader.ReadString(Encoding.Unicode, token))!;
+                    var env = await _reader.ReadEnvironmentBlockAsync(Encoding.Unicode, token);
+                    await _reader.VerifyTerminator(token);
+                    eventCb(new ProcessStart(timestamp, _clientId, exePath, cmdLine, workingDirectory, env));
                     break;
+                }
                 default:
                     throw new SwitchExpressionException(type);
             }

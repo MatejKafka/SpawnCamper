@@ -20,6 +20,13 @@ internal sealed class LogReader(Stream stream) : IDisposable {
         return MemoryMarshal.Read<T>(_buffer);
     }
 
+    public async ValueTask VerifyTerminator(CancellationToken token) {
+        var terminator = await ReadAsync<uint>(token);
+        if (terminator != 0x012345678) {
+            throw new InvalidDataException("Malformed message from the traced process, incorrect terminator found.");
+        }
+    }
+
     public async ValueTask<Encoding> ReadEncoding(CancellationToken token) {
         var codePage = await ReadAsync<int>(token);
         var encoding = CodePagesEncodingProvider.Instance.GetEncoding(codePage);

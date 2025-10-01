@@ -91,7 +91,7 @@ public class MainWindowViewModel : INotifyPropertyChanged {
 
     private void HandleStart(LogServer.ProcessStart start) {
         var process = GetOrCreateProcess(start.ProcessId);
-        process.ApplyStartData(start.ApplicationName, start.CommandLine, start.WorkingDirectory, start.Environment);
+        process.ApplyStartData(start.ExePath, start.CommandLine, start.WorkingDirectory, start.Environment);
 
         if (_pendingParents.TryGetValue(start.ProcessId, out var parentId)) {
             var parent = GetOrCreateProcess(parentId);
