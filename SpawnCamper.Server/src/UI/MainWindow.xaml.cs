@@ -1,5 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Documents;
 using System.Windows.Input;
 using SpawnCamper.Server.UI.ViewModels;
 
@@ -35,8 +37,14 @@ public partial class MainWindow {
     }
 
     private bool HandleCopyFullInvocation(KeyEventArgs e) {
-        // Handle Ctrl+C to copy full invocation
+        // Handle Ctrl+C to copy full invocation, unless text is selected in a TextBox or FlowDocument
         if (e.Key == Key.C && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control) {
+            // Check if the focused element has selected text
+            if (HasSelectedText()) {
+                // Let the default copy behavior handle it
+                return false;
+            }
+
             var selectedProcess = _viewModel.SelectedProcess;
             if (selectedProcess != null && selectedProcess.CopyFullInvocationCommand.CanExecute(null)) {
                 selectedProcess.CopyFullInvocationCommand.Execute(null);
@@ -44,6 +52,33 @@ public partial class MainWindow {
                 return true;
             }
         }
+        return false;
+    }
+
+    private bool HasSelectedText() {
+        var focusedElement = FocusManager.GetFocusedElement(this);
+
+        // Check if a TextBox has selected text
+        if (focusedElement is TextBox textBox && !string.IsNullOrEmpty(textBox.SelectedText)) {
+            return true;
+        }
+
+        // Check if a FlowDocumentScrollViewer or RichTextBox has selected text
+        if (focusedElement is FlowDocumentScrollViewer flowDocViewer) {
+            var selection = flowDocViewer.Selection;
+            if (selection != null && !selection.IsEmpty) {
+                return true;
+            }
+        }
+
+        // Check for RichTextBox (in case it's used elsewhere)
+        if (focusedElement is RichTextBox richTextBox) {
+            var selection = richTextBox.Selection;
+            if (selection != null && !selection.IsEmpty) {
+                return true;
+            }
+        }
+
         return false;
     }
 
