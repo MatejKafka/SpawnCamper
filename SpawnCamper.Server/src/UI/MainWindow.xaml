@@ -196,7 +196,8 @@
                                   ItemsSource="{Binding Children}">
             <Grid Margin="0,1">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="220"
+                    <ColumnDefinition Width="Auto"
+                                      MinWidth="220"
                                       SharedSizeGroup="BinaryColumn"/>
                     <ColumnDefinition Width="90"
                                       SharedSizeGroup="PidColumn"/>
@@ -237,7 +238,7 @@
                     <TextBlock Grid.Column="2"
                                Text="{Binding BinaryNameDisplay}"
                                VerticalAlignment="Center"
-                               TextTrimming="CharacterEllipsis"
+                               TextTrimming="None"
                                Margin="0,0,12,0">
                         <TextBlock.ToolTip>
                             <StackPanel>
@@ -778,49 +779,53 @@
                 BorderBrush="#33000000"
                 BorderThickness="0,0,1,0"
                 Background="White">
-            <Grid Grid.IsSharedSizeScope="True">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
+            <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                          VerticalScrollBarVisibility="Disabled">
+                <Grid Grid.IsSharedSizeScope="True">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
 
-                <Border Grid.Row="0"
-                        Background="#F3F3F4"
-                        Padding="8,6">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="220"
-                                              SharedSizeGroup="BinaryColumn"/>
-                            <ColumnDefinition Width="90"
-                                              SharedSizeGroup="PidColumn"/>
-                            <ColumnDefinition Width="90"
-                                              SharedSizeGroup="ExitColumn"/>
-                            <ColumnDefinition Width="*"
-                                              SharedSizeGroup="CommandColumn"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0"
-                                   Text="Binary"
-                                   FontWeight="Bold"/>
-                        <TextBlock Grid.Column="1"
-                                   Text="PID"
-                                   FontWeight="Bold"/>
-                        <TextBlock Grid.Column="2"
-                                   Text="Exit"
-                                   FontWeight="Bold"/>
-                        <TextBlock Grid.Column="3"
-                                   Text="Command Line"
-                                   FontWeight="Bold"/>
-                    </Grid>
-                </Border>
+                    <Border Grid.Row="0"
+                            Background="#F3F3F4"
+                            Padding="8,6">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"
+                                                  MinWidth="220"
+                                                  SharedSizeGroup="BinaryColumn"/>
+                                <ColumnDefinition Width="90"
+                                                  SharedSizeGroup="PidColumn"/>
+                                <ColumnDefinition Width="90"
+                                                  SharedSizeGroup="ExitColumn"/>
+                                <ColumnDefinition Width="*"
+                                                  SharedSizeGroup="CommandColumn"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0"
+                                       Text="Binary"
+                                       FontWeight="Bold"/>
+                            <TextBlock Grid.Column="1"
+                                       Text="PID"
+                                       FontWeight="Bold"/>
+                            <TextBlock Grid.Column="2"
+                                       Text="Exit"
+                                       FontWeight="Bold"/>
+                            <TextBlock Grid.Column="3"
+                                       Text="Command Line"
+                                       FontWeight="Bold"/>
+                        </Grid>
+                    </Border>
 
-                <TreeView x:Name="ProcessTree"
-                          Grid.Row="1"
-                          ItemsSource="{Binding RootProcesses}"
-                          ItemTemplate="{StaticResource ProcessNodeTemplate}"
-                          SelectedItemChanged="ProcessTree_OnSelectedItemChanged"
-                          ItemContainerStyle="{StaticResource AlignedTreeViewItemStyle}"
-                          HorizontalContentAlignment="Stretch"/>
-            </Grid>
+                    <TreeView x:Name="ProcessTree"
+                              Grid.Row="1"
+                              ItemsSource="{Binding RootProcesses}"
+                              ItemTemplate="{StaticResource ProcessNodeTemplate}"
+                              SelectedItemChanged="ProcessTree_OnSelectedItemChanged"
+                              ItemContainerStyle="{StaticResource AlignedTreeViewItemStyle}"
+                              HorizontalContentAlignment="Stretch"/>
+                </Grid>
+            </ScrollViewer>
         </Border>
 
         <Border Grid.Column="1"

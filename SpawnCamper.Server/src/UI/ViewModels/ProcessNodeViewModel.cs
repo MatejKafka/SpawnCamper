@@ -434,7 +434,6 @@ public class ProcessNodeViewModel : INotifyPropertyChanged {
         OnPropertyChanged(nameof(HasEnvironment));
 
         RecomputeEnvironmentDifferences();
-        PropagateEnvironmentChangesToChildren();
 
         IsCreationFailure = false;
         FailureReason = null;
@@ -559,13 +558,6 @@ public class ProcessNodeViewModel : INotifyPropertyChanged {
 
         OnPropertyChanged(nameof(HasEnvironmentDifferences));
         OnPropertyChanged(nameof(EnvironmentDifferencesDisplay));
-    }
-
-    private void PropagateEnvironmentChangesToChildren() {
-        foreach (var child in Children) {
-            child.RecomputeEnvironmentDifferences();
-            child.PropagateEnvironmentChangesToChildren();
-        }
     }
 
     private static string ToSingleLine(string? value) {
