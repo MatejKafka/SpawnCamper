@@ -11,7 +11,9 @@ namespace Win32 {
         explicit Win32Error(DWORD error_code = GetLastError())
             : std::system_error((int)error_code, std::system_category()) {}
 
-        explicit Win32Error(DWORD error_code, const char* message)
+        explicit Win32Error(const char* message) : Win32Error(GetLastError(), message) {}
+
+        Win32Error(DWORD error_code, const char* message)
             : std::system_error((int)error_code, std::system_category(), message) {}
     };
 
@@ -23,7 +25,7 @@ namespace Win32 {
             DWORD actual_length = ::GetModuleFileNameW(hModule, result.data(), (DWORD)result.size());
 
             if (actual_length == 0) {
-                throw Win32Error{};
+                throw Win32Error{"GetModuleFileNameW"};
             }
 
             if (actual_length < result.size()) {
@@ -45,7 +47,7 @@ namespace Win32 {
             DWORD actual_length = ::GetCurrentDirectoryW((DWORD)result.size(), result.data());
 
             if (actual_length == 0) {
-                throw Win32Error{};
+                throw Win32Error{"GetCurrentDirectoryW"};
             }
 
             if (actual_length < result.size()) {
@@ -77,7 +79,7 @@ namespace Win32 {
             hTemplateFile
         );
         if (handle == INVALID_HANDLE_VALUE) {
-            throw Win32Error{};
+            throw Win32Error{"CreateFileW"};
         }
         return handle;
     }
@@ -93,14 +95,14 @@ namespace Win32 {
 
     inline void CloseHandle(HANDLE handle) {
         if (!::CloseHandle(handle)) {
-            throw Win32Error{};
+            throw Win32Error{"CloseHandle"};
         }
     }
 
     inline size_t WriteFile(HANDLE handle, std::span<const std::byte> buffer, LPOVERLAPPED overlapped = nullptr) {
         DWORD bytes_written;
         if (!::WriteFile(handle, buffer.data(), (DWORD)buffer.size_bytes(), &bytes_written, overlapped)) {
-            throw Win32Error{};
+            throw Win32Error{"WriteFile"};
         }
         return bytes_written;
     }
@@ -113,14 +115,14 @@ namespace Win32 {
             case WAIT_TIMEOUT:
                 return false;
             default:
-                throw Win32Error{};
+                throw Win32Error{"WaitForSingleObject"};
         }
     }
 
     inline DWORD GetExitCodeProcess(HANDLE handle) {
         DWORD exit_code;
         if (!::GetExitCodeProcess(handle, &exit_code)) {
-            throw Win32Error{};
+            throw Win32Error{"GetExitCodeProcess"};
         }
         return exit_code;
     }
@@ -128,7 +130,7 @@ namespace Win32 {
     inline HANDLE GetStdHandle(DWORD std_handle) {
         auto handle = ::GetStdHandle(std_handle);
         if (handle == INVALID_HANDLE_VALUE) {
-            throw Win32Error{};
+            throw Win32Error{"GetStdHandle"};
         }
         return handle;
     }
@@ -136,7 +138,7 @@ namespace Win32 {
     inline auto GetEnvironmentStringsW() {
         auto env = ::GetEnvironmentStringsW();
         if (env == nullptr) {
-            throw Win32Error{};
+            throw Win32Error{"GetEnvironmentStringsW"};
         }
         auto deleter = [](wchar_t* p) { FreeEnvironmentStringsW(p); };
         return std::unique_ptr<wchar_t, decltype(deleter)>{env, deleter};

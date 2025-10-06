@@ -9,20 +9,24 @@ public:
     explicit NamedPipeWriter(const std::filesystem::path& pipe_name) : m_output_handle(connect_to_server(pipe_name)) {}
 
     ~NamedPipeWriter() {
-        if (m_output_handle) {
+        if (connected()) {
             Win32::CloseHandle(m_output_handle);
         }
+    }
+
+    bool connected() {
+        return m_output_handle != INVALID_HANDLE_VALUE;
     }
 
     void close() {
         if (m_output_handle) {
             Win32::CloseHandle(m_output_handle);
-            m_output_handle = nullptr;
+            m_output_handle = INVALID_HANDLE_VALUE;
         }
     }
 
     void write(std::span<const std::byte> buffer) {
-        if (!m_output_handle) {
+        if (!connected()) {
             return; // the reader was stopped, skip writes and silently continue
         }
 
@@ -56,16 +60,22 @@ private:
 
             auto error = ::GetLastError();
             if (error == ERROR_FILE_NOT_FOUND) {
-                throw Win32::Win32Error{error, "SpawnCamper server does not seem to be running"};
+                // silently continue if the server is not running
+                return INVALID_HANDLE_VALUE;
             }
             if (error != ERROR_PIPE_BUSY) {
-                throw Win32::Win32Error{error};
+                throw Win32::Win32Error{error, "CreateFileW (named pipe)"};
             }
 
             // the pipe exists, but all instances are busy; this can intermittently happen just after another client
             //  connects to the server, before it services the connection and reopens another instance of the pipe server
             if (!WaitNamedPipeW(pipe_name.c_str(), NMPWAIT_WAIT_FOREVER)) {
-                throw Win32::Win32Error{};
+                error = ::GetLastError();
+                if (error == ERROR_FILE_NOT_FOUND) {
+                    // silently continue if the server is not running
+                    return INVALID_HANDLE_VALUE;
+                }
+                throw Win32::Win32Error{"WaitNamedPipeW"};
             }
         }
     }

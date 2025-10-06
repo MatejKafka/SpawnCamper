@@ -2,9 +2,12 @@
 #include <detours.h>
 #include <iostream>
 #include <string>
+#include <filesystem>
 
 #include "Utils.hpp"
 #include "Win32.hpp"
+
+constexpr auto SERVER_PIPE_NAME = LR"(\\.\pipe\SpawnCamper)";
 
 static const wchar_t* find_argv1(const wchar_t* cmd_line) {
     // https://learn.microsoft.com/en-us/cpp/c-language/parsing-c-command-line-arguments?view=msvc-170
@@ -38,6 +41,11 @@ static const wchar_t* find_argv1(const wchar_t* cmd_line) {
 }
 
 void real_main() {
+    if (GetFileAttributesW(SERVER_PIPE_NAME) == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND) {
+        std::cerr << "Could not connect to the SpawnCamper server (UI). Is it running?\n";
+        exit(1);
+    }
+
     auto exe_path = Win32::GetModuleFileNameW();
     exe_path.replace_filename(L"hook64.dll");
     // Detours takes a `char*` even in the W variant
@@ -59,7 +67,7 @@ void real_main() {
         nullptr, nullptr, false, 0, nullptr, nullptr,
         &startup_info, &process_info, dll_path_str.c_str(), nullptr);
     if (!success) {
-        throw Win32::Win32Error{};
+        throw Win32::Win32Error{"DetourCreateProcessWithDllExW"};
     }
 
     Win32::WaitForSingleObject(process_info.hProcess);
