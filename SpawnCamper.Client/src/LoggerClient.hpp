@@ -24,10 +24,11 @@ public:
         write<uint32_t>(TERMINATOR_MAGIC);
     }
 
-    void log_new_process(LPCWSTR exe_path, LPCWSTR cmd_line, LPCWSTR working_dir, LPCWSTR env) {
+    void log_new_process(DWORD parentPid, LPCWSTR exe_path, LPCWSTR cmd_line, LPCWSTR working_dir, LPCWSTR env) {
         std::unique_lock lock(m_pipe_mutex);
 
         write_message_header(MessageType::ProcessStart);
+        write<uint32_t>(parentPid);
         write_string(exe_path);
         write_string(cmd_line);
         write_string(working_dir);
@@ -36,11 +37,10 @@ public:
     }
 
     template<typename CharT>
-    void log_CreateProcess(DWORD pid, const CharT* lpApplicationName, const CharT* lpCommandLine) {
+    void log_CreateProcess_failure(const CharT* lpApplicationName, const CharT* lpCommandLine) {
         std::unique_lock lock(m_pipe_mutex);
 
-        write_message_header(MessageType::CreateProcess_);
-        write<uint32_t>(pid);
+        write_message_header(MessageType::CreateProcessFailure);
         // the code page may be set per-process, so we need to store the code page of the original process
         //  so that the server can decode it
         // 1200 = UTF-16LE
@@ -54,7 +54,7 @@ private:
     static constexpr uint32_t TERMINATOR_MAGIC = 0x012345678;
     enum class MessageType : uint16_t {
         ExitProcess,
-        CreateProcess_,
+        CreateProcessFailure,
         ProcessStart,
     };
 

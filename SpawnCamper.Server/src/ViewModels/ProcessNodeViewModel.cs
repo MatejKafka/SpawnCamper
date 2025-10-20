@@ -1,217 +1,156 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Windows;
 using System.Windows.Input;
+using SpawnCamper.Core;
 
 namespace SpawnCamper.Server.UI.ViewModels;
 
+/// <summary>
+/// ViewModel wrapper for TracedProcessTree.ProcessInvocation, representing either a successful
+/// process or a failed process creation in the tree view.
+/// </summary>
 public class ProcessNodeViewModel : INotifyPropertyChanged {
-    private readonly Dictionary<string, string> _environmentMap = new(StringComparer.OrdinalIgnoreCase);
-    private string? _applicationName;
-    private string? _commandLine;
-    private string? _workingDirectory;
-    private bool _isActive;
-    private bool _isDetached;
-    private int? _exitCode;
-    private ProcessNodeViewModel? _parent;
-    private bool _hasStarted;
-    private bool _isCreationFailure;
-    private string? _failureReason;
-    private DateTime? _attachTime;
-    private DateTime? _detachTime;
-    private ICommand? _copyCommandLineAsPowerShellCommand;
-    private ICommand? _copyEnvironmentDifferencesAsPowerShellCommand;
-    private ICommand? _copyFullEnvironmentAsPowerShellCommand;
-    private ICommand? _copyFullInvocationCommand;
-    private ICommand? _launchInWinDbgCommand;
-    private ICommand? _launchInWinDbgBreakCommand;
-    private ICommand? _launchInVisualStudioCommand;
-    private ICommand? _launchInVisualStudioBreakCommand;
+    private readonly TracedProcessTree.ProcessInvocation _invocation;
+    private readonly ObservableCollection<ProcessNodeViewModel> _children = [];
 
-    public ProcessNodeViewModel(int processId) {
-        ProcessId = processId;
-        Children = new ObservableCollection<ProcessNodeViewModel>();
-        EnvironmentVariables = new ObservableCollection<KeyValuePair<string, string>>();
-        EnvironmentDifferences = new ObservableCollection<EnvironmentVariableDifference>();
+    public ProcessNodeViewModel(TracedProcessTree.ProcessInvocation invocation) {
+        _invocation = invocation;
+
+        // Subscribe to child collection changes if this is a successful process
+        if (_invocation.Child is {} node) {
+            node.Children.CollectionChanged += OnChildrenCollectionChanged;
+            // Initialize children
+            foreach (var childInvocation in node.Children) {
+                _children.Add(new ProcessNodeViewModel(childInvocation));
+            }
+            // Subscribe to property changes on the process
+            node.Process.PropertyChanged += OnProcessPropertyChanged;
+        }
+    }
+
+    private void OnChildrenCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) {
+        if (e.Action == NotifyCollectionChangedAction.Add && e.NewItems != null) {
+            foreach (TracedProcessTree.ProcessInvocation invocation in e.NewItems) {
+                _children.Add(new ProcessNodeViewModel(invocation));
+            }
+        }
+        // Handle other collection change types if needed
+    }
+
+    private void OnProcessPropertyChanged(object? sender, PropertyChangedEventArgs e) {
+        // Forward property changes from the model to the UI
+        switch (e.PropertyName) {
+            case nameof(TracedProcess.ExitCode):
+                OnPropertyChanged(nameof(ExitCode));
+                OnPropertyChanged(nameof(ExitDisplayText));
+                OnPropertyChanged(nameof(StatusText));
+                OnPropertyChanged(nameof(IsActive));
+                OnPropertyChanged(nameof(ShowSpinner));
+                OnPropertyChanged(nameof(IsRunning));
+                OnPropertyChanged(nameof(IsDetached));
+                OnPropertyChanged(nameof(DurationDisplay)); // Duration may change when exit code is set
+                break;
+            case nameof(TracedProcess.EndTime):
+                OnPropertyChanged(nameof(EndTime));
+                OnPropertyChanged(nameof(DetachTimeDisplay));
+                OnPropertyChanged(nameof(DurationDisplay));
+                OnPropertyChanged(nameof(IsActive));
+                OnPropertyChanged(nameof(ShowSpinner));
+                OnPropertyChanged(nameof(IsRunning));
+                OnPropertyChanged(nameof(IsDetached));
+                break;
+        }
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public int ProcessId {get;}
+    // Expose the underlying process or failed invocation information
+    private TracedProcess? Process => _invocation.Child?.Process;
+    private TracedProcessTree.FailedInvocation? FailedInvocation => _invocation.FailedInvocation;
 
-    public ObservableCollection<ProcessNodeViewModel> Children {get;}
+    public bool IsCreationFailure => !_invocation.Success;
+    public bool HasStarted => Process != null;
 
-    public ObservableCollection<KeyValuePair<string, string>> EnvironmentVariables {get;}
+    public int ProcessId => Process?.ProcessId ?? 0;
+    public ObservableCollection<ProcessNodeViewModel> Children => _children;
 
-    public ObservableCollection<EnvironmentVariableDifference> EnvironmentDifferences {get;}
+    // Environment-related properties
+    public ObservableCollection<KeyValuePair<string, string>>? EnvironmentVariables {
+        get {
+            if (field == null && Process != null) {
+                field = new ObservableCollection<KeyValuePair<string, string>>(
+                        Process.Environment.OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase));
+            }
+            return field ?? [];
+        }
+    }
+
+    [field: AllowNull, MaybeNull]
+    public ObservableCollection<EnvironmentVariableDifference> EnvironmentDifferences {
+        get {
+            if (field == null && Process?.EnvironmentDiff != null) {
+                field = new ObservableCollection<EnvironmentVariableDifference>();
+                foreach (var (key, value) in
+                         Process.EnvironmentDiff.OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase)) {
+                    if (value == null) {
+                        // Variable was removed
+                        var parentValue = Process.Parent?.Environment.GetValueOrDefault(key);
+                        if (parentValue != null) {
+                            field.Add(new EnvironmentVariableDifference(
+                                    key, parentValue, EnvironmentVariableDiffKind.Removed));
+                        }
+                    } else {
+                        // Variable was added or changed
+                        var parentValue = Process.Parent?.Environment.GetValueOrDefault(key);
+                        if (parentValue != null && parentValue != value) {
+                            // Changed - show both old and new
+                            field.Add(new EnvironmentVariableDifference(
+                                    key, parentValue, EnvironmentVariableDiffKind.Removed));
+                            field.Add(new EnvironmentVariableDifference(
+                                    key, value, EnvironmentVariableDiffKind.Added));
+                        } else {
+                            // Added
+                            field.Add(new EnvironmentVariableDifference(
+                                    key, value, EnvironmentVariableDiffKind.Added));
+                        }
+                    }
+                }
+            }
+            return field ?? new ObservableCollection<EnvironmentVariableDifference>();
+        }
+    }
 
     public string EnvironmentDifferencesDisplay => EnvironmentDifferences.Count == 0
-            ? string.Empty
+            ? ""
             : string.Join(Environment.NewLine, EnvironmentDifferences.Select(diff => diff.DisplayText));
 
-    public ProcessNodeViewModel? Parent {
-        get => _parent;
-        private set {
-            if (_parent == value) {
-                return;
-            }
-            _parent = value;
-            OnPropertyChanged(nameof(Parent));
-            OnPropertyChanged(nameof(IsRoot));
-        }
-    }
+    public ProcessNodeViewModel? Parent => Process?.Parent == null
+            ? null
+            : new ProcessNodeViewModel(
+                    new TracedProcessTree.ProcessInvocation(new TracedProcessTree.Node(Process.Parent, [])));
 
-    public bool IsRoot => Parent == null;
-
-    public string? ApplicationName {
-        get => _applicationName;
-        private set {
-            if (_applicationName == value) {
-                return;
-            }
-            _applicationName = value;
-            OnPropertyChanged(nameof(ApplicationName));
-            OnPropertyChanged(nameof(DisplayLabel));
-            OnPropertyChanged(nameof(DisplayLabelSingleLine));
-            OnPropertyChanged(nameof(BinaryNameDisplay));
-        }
-    }
-
-    public string? CommandLine {
-        get => _commandLine;
-        private set {
-            if (_commandLine == value) {
-                return;
-            }
-            _commandLine = value;
-            OnPropertyChanged(nameof(CommandLine));
-            OnPropertyChanged(nameof(DisplayLabel));
-            OnPropertyChanged(nameof(DisplayLabelSingleLine));
-            OnPropertyChanged(nameof(BinaryNameDisplay));
-        }
-    }
-
-    public string? WorkingDirectory {
-        get => _workingDirectory;
-        private set {
-            if (_workingDirectory == value) {
-                return;
-            }
-            _workingDirectory = value;
-            OnPropertyChanged(nameof(WorkingDirectory));
-        }
-    }
-
-    public bool IsActive {
-        get => _isActive;
-        private set {
-            if (_isActive == value) {
-                return;
-            }
-            _isActive = value;
-            OnPropertyChanged(nameof(IsActive));
-            OnPropertyChanged(nameof(ShowSpinner));
-            OnPropertyChanged(nameof(ExitDisplayText));
-            OnPropertyChanged(nameof(StatusText));
-            OnPropertyChanged(nameof(IsRunning));
-        }
-    }
-
-    public bool IsDetached {
-        get => _isDetached;
-        private set {
-            if (_isDetached == value) {
-                return;
-            }
-            _isDetached = value;
-            OnPropertyChanged(nameof(IsDetached));
-            OnPropertyChanged(nameof(ExitDisplayText));
-            OnPropertyChanged(nameof(StatusText));
-        }
-    }
-
-    public int? ExitCode {
-        get => _exitCode;
-        private set {
-            if (_exitCode == value) {
-                return;
-            }
-            _exitCode = value;
-            OnPropertyChanged(nameof(ExitCode));
-            OnPropertyChanged(nameof(ExitDisplayText));
-            OnPropertyChanged(nameof(StatusText));
-        }
-    }
-
-    public bool HasStarted {
-        get => _hasStarted;
-        private set {
-            if (_hasStarted == value) {
-                return;
-            }
-            _hasStarted = value;
-            OnPropertyChanged(nameof(HasStarted));
-            OnPropertyChanged(nameof(StatusText));
-            OnPropertyChanged(nameof(ProcessIdDisplay));
-            OnPropertyChanged(nameof(CommandLineDisplay));
-        }
-    }
-
-    public bool IsCreationFailure {
-        get => _isCreationFailure;
-        private set {
-            if (_isCreationFailure == value) {
-                return;
-            }
-            _isCreationFailure = value;
-            OnPropertyChanged(nameof(IsCreationFailure));
-            OnPropertyChanged(nameof(ExitDisplayText));
-            OnPropertyChanged(nameof(StatusText));
-            OnPropertyChanged(nameof(ProcessIdDisplay));
-            OnPropertyChanged(nameof(CommandLineDisplay));
-            OnPropertyChanged(nameof(ShowSpinner));
-            OnPropertyChanged(nameof(BinaryNameDisplay));
-            OnPropertyChanged(nameof(DisplayLabel));
-            OnPropertyChanged(nameof(DisplayLabelSingleLine));
-        }
-    }
-
-    public string? FailureReason {
-        get => _failureReason;
-        private set {
-            if (_failureReason == value) {
-                return;
-            }
-            _failureReason = value;
-            OnPropertyChanged(nameof(FailureReason));
-            OnPropertyChanged(nameof(CommandLineDisplay));
-            OnPropertyChanged(nameof(BinaryNameDisplay));
-            OnPropertyChanged(nameof(DisplayLabel));
-            OnPropertyChanged(nameof(DisplayLabelSingleLine));
-        }
-    }
-
+    public bool IsRoot => Process?.Parent == null;
+    public string? ApplicationName => Process?.ExePath ?? FailedInvocation?.ExePath;
+    public string? CommandLine => Process?.CommandLine ?? FailedInvocation?.CommandLine;
+    public string? WorkingDirectory => Process?.WorkingDirectory;
+    public bool IsActive => Process?.EndTime == null && HasStarted && !IsCreationFailure;
+    public bool IsDetached => Process is {EndTime: not null, ExitCode: null};
+    public int? ExitCode => Process?.ExitCode;
+    public DateTime? AttachTime => Process?.StartTime;
+    public DateTime? EndTime => Process?.EndTime;
     public bool ShowSpinner => IsActive && !IsCreationFailure;
 
     public string ExitDisplayText {
         get {
-            if (IsCreationFailure) {
-                return "Failed";
-            }
-            if (IsActive) {
-                return string.Empty;
-            }
-            if (ExitCode.HasValue) {
-                return ExitCode.Value.ToString();
-            }
-            if (IsDetached) {
-                return "<unknown>";
-            }
+            if (IsCreationFailure) return "Failed";
+            if (IsActive) return "";
+            if (ExitCode.HasValue) return ExitCode.Value.ToString();
+            if (IsDetached) return "<unknown>";
             return "—";
         }
     }
@@ -220,64 +159,28 @@ public class ProcessNodeViewModel : INotifyPropertyChanged {
 
     public string StatusText {
         get {
-            if (IsCreationFailure) {
-                return "CreateProcess failed";
-            }
-            if (IsActive) {
-                return "Running";
-            }
-            if (ExitCode.HasValue) {
-                return $"Exited ({ExitCode.Value})";
-            }
-            if (IsDetached) {
-                return "Terminated";
-            }
-            if (HasStarted) {
-                return "Stopped";
-            }
+            if (IsCreationFailure) return "CreateProcess failed";
+            if (IsActive) return "Running";
+            if (ExitCode.HasValue) return $"Exited ({ExitCode.Value})";
+            if (IsDetached) return "Terminated";
+            if (HasStarted) return "Stopped";
             return "Waiting to start";
         }
     }
 
     public string ProcessIdDisplay => IsCreationFailure ? "—" : ProcessId.ToString();
 
-    public DateTime? AttachTime {
-        get => _attachTime;
-        private set {
-            if (_attachTime == value) {
-                return;
-            }
-            _attachTime = value;
-            OnPropertyChanged(nameof(AttachTime));
-            OnPropertyChanged(nameof(AttachTimeDisplay));
-            OnPropertyChanged(nameof(DurationDisplay));
-        }
-    }
+    public string AttachTimeDisplay => AttachTime?.ToLocalTime().ToString("HH:mm:ss.fff") ?? "—";
 
-    public DateTime? DetachTime {
-        get => _detachTime;
-        private set {
-            if (_detachTime == value) {
-                return;
-            }
-            _detachTime = value;
-            OnPropertyChanged(nameof(DetachTime));
-            OnPropertyChanged(nameof(DetachTimeDisplay));
-            OnPropertyChanged(nameof(DurationDisplay));
-        }
-    }
-
-    public string AttachTimeDisplay => _attachTime?.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss.fff") ?? "—";
-
-    public string DetachTimeDisplay => _detachTime?.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss.fff") ?? "—";
+    public string DetachTimeDisplay => EndTime?.ToLocalTime().ToString("HH:mm:ss.fff") ?? "—";
 
     public string DurationDisplay {
         get {
-            if (_attachTime == null) {
+            if (AttachTime == null) {
                 return "—";
             }
-            var endTime = _detachTime ?? DateTime.UtcNow;
-            var duration = endTime - _attachTime.Value;
+            var endTime = EndTime ?? DateTime.UtcNow;
+            var duration = endTime - AttachTime.Value;
             if (duration.TotalDays >= 1) {
                 return $"{duration.TotalDays:F2} days";
             }
@@ -291,6 +194,19 @@ public class ProcessNodeViewModel : INotifyPropertyChanged {
                 return $"{duration.TotalSeconds:F2} seconds";
             }
             return $"{duration.TotalMilliseconds:F0} ms";
+        }
+    }
+
+    public string? FailureReason {
+        get {
+            if (!IsCreationFailure) return null;
+            var cmdLine = FailedInvocation?.CommandLine;
+            var exePath = FailedInvocation?.ExePath;
+            return string.IsNullOrWhiteSpace(cmdLine)
+                    ? string.IsNullOrWhiteSpace(exePath)
+                            ? "CreateProcess failed"
+                            : $"CreateProcess failed: {exePath}"
+                    : $"CreateProcess failed: {cmdLine}";
         }
     }
 
@@ -317,252 +233,60 @@ public class ProcessNodeViewModel : INotifyPropertyChanged {
                     ? ApplicationName ?? "(not reported)"
                     : CommandLine;
 
-    public bool HasEnvironment => EnvironmentVariables.Count > 0;
-
-    public bool HasEnvironmentDifferences => EnvironmentDifferences.Count > 0;
-
-    public ICommand CopyCommandLineAsPowerShellCommand {
-        get {
-            return _copyCommandLineAsPowerShellCommand ??= new RelayCommand(() => {
-                var powershellCmd = ConvertCommandLineToPowerShell(ApplicationName, CommandLine);
-                if (!string.IsNullOrEmpty(powershellCmd)) {
-                    Clipboard.SetText(powershellCmd);
-                }
-            }, () => !string.IsNullOrWhiteSpace(CommandLine));
-        }
-    }
-
-    public ICommand CopyEnvironmentDifferencesAsPowerShellCommand {
-        get {
-            return _copyEnvironmentDifferencesAsPowerShellCommand ??= new RelayCommand(() => {
-                var powershellScript = ConvertEnvironmentDifferencesToPowerShell(EnvironmentDifferences);
-                if (!string.IsNullOrEmpty(powershellScript)) {
-                    Clipboard.SetText(powershellScript);
-                }
-            }, () => HasEnvironmentDifferences);
-        }
-    }
-
-    public ICommand CopyFullEnvironmentAsPowerShellCommand {
-        get {
-            return _copyFullEnvironmentAsPowerShellCommand ??= new RelayCommand(() => {
-                var powershellScript = ConvertFullEnvironmentToPowerShell(EnvironmentVariables);
-                if (!string.IsNullOrEmpty(powershellScript)) {
-                    Clipboard.SetText(powershellScript);
-                }
-            }, () => HasEnvironment);
-        }
-    }
-
-    public ICommand CopyFullInvocationCommand {
-        get {
-            return _copyFullInvocationCommand ??= new RelayCommand(() => {
-                var powershellScript =
-                        ConvertFullInvocationToPowerShell(ApplicationName, EnvironmentVariables, WorkingDirectory, CommandLine);
-                if (!string.IsNullOrEmpty(powershellScript)) {
-                    Clipboard.SetText(powershellScript);
-                }
-            }, () => HasEnvironment && !string.IsNullOrWhiteSpace(CommandLine));
-        }
-    }
-
-    public ICommand LaunchInWinDbgCommand {
-        get {
-            return _launchInWinDbgCommand ??=
-                    new RelayCommand(
-                            () => {
-                                LaunchInWinDbg(ApplicationName, EnvironmentVariables, WorkingDirectory, CommandLine, breakOnStart: false);
-                            }, () => !string.IsNullOrWhiteSpace(CommandLine));
-        }
-    }
-
-    public ICommand LaunchInWinDbgBreakCommand {
-        get {
-            return _launchInWinDbgBreakCommand ??=
-                    new RelayCommand(
-                            () => {LaunchInWinDbg(ApplicationName, EnvironmentVariables, WorkingDirectory, CommandLine, breakOnStart: true);},
-                            () => !string.IsNullOrWhiteSpace(CommandLine));
-        }
-    }
-
-    public ICommand LaunchInVisualStudioCommand {
-        get {
-            return _launchInVisualStudioCommand ??=
-                    new RelayCommand(
-                            () => {
-                                LaunchInVisualStudio(ApplicationName, EnvironmentVariables, WorkingDirectory, CommandLine,
-                                        breakOnStart: false);
-                            }, () => !string.IsNullOrWhiteSpace(CommandLine));
-        }
-    }
-
-    public ICommand LaunchInVisualStudioBreakCommand {
-        get {
-            return _launchInVisualStudioBreakCommand ??= new RelayCommand(
-                    () => {LaunchInVisualStudio(ApplicationName, EnvironmentVariables, WorkingDirectory, CommandLine, breakOnStart: true);},
-                    () => !string.IsNullOrWhiteSpace(CommandLine));
-        }
-    }
+    public bool HasEnvironment => Process is {Environment.Count: > 0};
+    public bool HasEnvironmentDifferences => Process?.EnvironmentDiff is {Count: > 0};
 
     public string BinaryNameDisplay {
         get {
             var name = ExtractBinaryName(ApplicationName, CommandLine);
-            if (!string.IsNullOrEmpty(name)) {
-                return name;
-            }
-
-            if (IsCreationFailure) {
-                return "(CreateProcess failed)";
-            }
-
-            return "(unknown)";
+            return !string.IsNullOrEmpty(name) ? name : IsCreationFailure ? "(CreateProcess failed)" : "(unknown)";
         }
     }
 
-    internal void ApplyStartData(string applicationName, string commandLine, string workingDirectory,
-            IReadOnlyDictionary<string, string> environment) {
-        ApplicationName = applicationName;
-        CommandLine = commandLine;
-        WorkingDirectory = workingDirectory;
+    // Commands
+    [field: AllowNull, MaybeNull]
+    public ICommand CopyCommandLineAsPowerShellCommand => field ??= new RelayCommand(
+            () => Clipboard.SetText(ConvertCommandLineToPowerShell(ApplicationName, CommandLine)),
+            () => !string.IsNullOrWhiteSpace(CommandLine));
 
-        _environmentMap.Clear();
-        EnvironmentVariables.Clear();
-        foreach (var kv in environment.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase)) {
-            _environmentMap[kv.Key] = kv.Value;
-            EnvironmentVariables.Add(kv);
-        }
-        OnPropertyChanged(nameof(HasEnvironment));
+    [field: AllowNull, MaybeNull]
+    public ICommand CopyEnvironmentDifferencesAsPowerShellCommand => field ??= new RelayCommand(
+            () => Clipboard.SetText(ConvertEnvironmentDifferencesToPowerShell(EnvironmentDifferences)),
+            () => HasEnvironmentDifferences);
 
-        RecomputeEnvironmentDifferences();
+    [field: AllowNull, MaybeNull]
+    public ICommand CopyFullEnvironmentAsPowerShellCommand => field ??= new RelayCommand(
+            () => Clipboard.SetText(ConvertFullEnvironmentToPowerShell(EnvironmentVariables!)),
+            () => HasEnvironment);
 
-        IsCreationFailure = false;
-        FailureReason = null;
-        HasStarted = true;
-        IsActive = true;
-        IsDetached = false;
-        ExitCode = null;
-        OnPropertyChanged(nameof(CommandLineDisplay));
-        OnPropertyChanged(nameof(DisplayLabel));
-        OnPropertyChanged(nameof(DisplayLabelSingleLine));
-        OnPropertyChanged(nameof(BinaryNameDisplay));
-    }
+    [field: AllowNull, MaybeNull]
+    public ICommand CopyFullInvocationCommand => field ??= new RelayCommand(
+            () => Clipboard.SetText(ConvertFullInvocationToPowerShell(
+                    ApplicationName, EnvironmentVariables!, WorkingDirectory, CommandLine)),
+            () => HasEnvironment && !string.IsNullOrWhiteSpace(CommandLine));
 
-    internal static ProcessNodeViewModel FromCreateFailure(LogServer.ProcessCreate create) {
-        var node = new ProcessNodeViewModel(0) {
-            ApplicationName = create.ApplicationName,
-            CommandLine = create.CommandLine
-        };
-        node.ApplyCreateFailure(create);
-        return node;
-    }
+    [field: AllowNull, MaybeNull]
+    public ICommand LaunchInWinDbgCommand => field ??= new RelayCommand(
+            () => LaunchInWinDbg(ApplicationName, EnvironmentVariables, WorkingDirectory, CommandLine, breakOnStart: false),
+            () => !string.IsNullOrWhiteSpace(CommandLine));
 
-    internal void MarkAttached(DateTime timestamp) {
-        AttachTime = timestamp;
-        if (HasStarted && !IsCreationFailure) {
-            IsActive = true;
-        }
-        IsDetached = false;
-    }
+    [field: AllowNull, MaybeNull]
+    public ICommand LaunchInWinDbgBreakCommand => field ??= new RelayCommand(
+            () => LaunchInWinDbg(ApplicationName, EnvironmentVariables, WorkingDirectory, CommandLine, breakOnStart: true),
+            () => !string.IsNullOrWhiteSpace(CommandLine));
 
-    internal void MarkExited(int exitCode) {
-        ExitCode = exitCode;
-        IsActive = false;
-        IsDetached = false;
-        if (!HasStarted) {
-            HasStarted = true;
-        }
-    }
-
-    internal void MarkDetached(DateTime timestamp) {
-        DetachTime = timestamp;
-        IsActive = false;
-        if (!ExitCode.HasValue) {
-            IsDetached = true;
-        }
-        if (!HasStarted) {
-            HasStarted = true;
-        }
-    }
-
-    internal void AssignParent(ProcessNodeViewModel? parent) {
-        Parent = parent;
-        RecomputeEnvironmentDifferences();
-    }
-
-    internal void ApplyCreateFailure(LogServer.ProcessCreate create) {
-        ApplicationName = create.ApplicationName;
-        CommandLine = create.CommandLine;
-        WorkingDirectory = null;
-        _environmentMap.Clear();
-        EnvironmentVariables.Clear();
-        EnvironmentDifferences.Clear();
-        OnPropertyChanged(nameof(HasEnvironment));
-        OnPropertyChanged(nameof(HasEnvironmentDifferences));
-        OnPropertyChanged(nameof(EnvironmentDifferencesDisplay));
-
-        FailureReason = string.IsNullOrWhiteSpace(create.CommandLine)
-                ? string.IsNullOrWhiteSpace(create.ApplicationName)
-                        ? "CreateProcess failed"
-                        : $"CreateProcess failed: {create.ApplicationName}"
-                : $"CreateProcess failed: {create.CommandLine}";
-
-        IsCreationFailure = true;
-        HasStarted = false;
-        IsActive = false;
-        IsDetached = false;
-        ExitCode = null;
-        OnPropertyChanged(nameof(CommandLineDisplay));
-        OnPropertyChanged(nameof(DisplayLabel));
-        OnPropertyChanged(nameof(DisplayLabelSingleLine));
-        OnPropertyChanged(nameof(BinaryNameDisplay));
-    }
+    [field: AllowNull, MaybeNull]
+    public ICommand LaunchInVisualStudioCommand => field ??= new RelayCommand(
+            () => LaunchInVisualStudio(ApplicationName, EnvironmentVariables, WorkingDirectory, CommandLine),
+            () => !string.IsNullOrWhiteSpace(CommandLine));
 
     protected void OnPropertyChanged(string propertyName) {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 
-    private void RecomputeEnvironmentDifferences() {
-        EnvironmentDifferences.Clear();
-
-        var parentMap = Parent?._environmentMap;
-        var orderedKeys = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var key in _environmentMap.Keys) {
-            orderedKeys.Add(key);
-        }
-        if (parentMap != null) {
-            foreach (var key in parentMap.Keys) {
-                orderedKeys.Add(key);
-            }
-        }
-
-        foreach (var key in orderedKeys) {
-            var childHas = _environmentMap.TryGetValue(key, out var childValue);
-            string? parentValue = null;
-            var parentHas = parentMap != null && parentMap.TryGetValue(key, out parentValue);
-
-            if (childHas && parentHas) {
-                if (!string.Equals(childValue, parentValue, StringComparison.Ordinal)) {
-                    EnvironmentDifferences.Add(new EnvironmentVariableDifference(key, parentValue,
-                            EnvironmentVariableDiffKind.Removed));
-                    EnvironmentDifferences.Add(new EnvironmentVariableDifference(key, childValue,
-                            EnvironmentVariableDiffKind.Added));
-                }
-            } else if (childHas) {
-                EnvironmentDifferences.Add(new EnvironmentVariableDifference(key, childValue,
-                        EnvironmentVariableDiffKind.Added));
-            } else if (parentHas) {
-                EnvironmentDifferences.Add(new EnvironmentVariableDifference(key, parentValue,
-                        EnvironmentVariableDiffKind.Removed));
-            }
-        }
-
-        OnPropertyChanged(nameof(HasEnvironmentDifferences));
-        OnPropertyChanged(nameof(EnvironmentDifferencesDisplay));
-    }
-
     private static string ToSingleLine(string? value) {
         if (string.IsNullOrWhiteSpace(value)) {
-            return string.Empty;
+            return "";
         }
 
         var normalized = CollapseWhitespace(value.ReplaceLineEndings(" ")).Trim();
@@ -576,7 +300,7 @@ public class ProcessNodeViewModel : INotifyPropertyChanged {
 
     private static string CollapseWhitespace(string value) {
         if (string.IsNullOrEmpty(value)) {
-            return string.Empty;
+            return "";
         }
 
         var builder = new StringBuilder(value.Length);
@@ -656,7 +380,7 @@ public class ProcessNodeViewModel : INotifyPropertyChanged {
 
     private static string ConvertCommandLineToPowerShell(string? applicationName, string? commandLine) {
         if (string.IsNullOrWhiteSpace(commandLine)) {
-            return string.Empty;
+            return "";
         }
 
         // Use the absolute path from applicationName if available
@@ -665,7 +389,7 @@ public class ProcessNodeViewModel : INotifyPropertyChanged {
             // Fallback: parse from command line if applicationName is not available
             var text = commandLine.Trim();
             if (text.Length == 0) {
-                return string.Empty;
+                return "";
             }
 
             if (text[0] == '"') {
@@ -692,16 +416,16 @@ public class ProcessNodeViewModel : INotifyPropertyChanged {
         if (text2[0] == '"') {
             var endQuote = text2.IndexOf('"', 1);
             if (endQuote > 1) {
-                arguments = endQuote + 1 < text2.Length ? text2.Substring(endQuote + 1).TrimStart() : string.Empty;
+                arguments = endQuote + 1 < text2.Length ? text2.Substring(endQuote + 1).TrimStart() : "";
             } else {
-                arguments = string.Empty;
+                arguments = "";
             }
         } else {
             var spaceIndex = text2.IndexOf(' ');
             if (spaceIndex >= 0) {
                 arguments = text2[(spaceIndex + 1)..].TrimStart();
             } else {
-                arguments = string.Empty;
+                arguments = "";
             }
         }
 
@@ -760,7 +484,7 @@ public class ProcessNodeViewModel : INotifyPropertyChanged {
         return $"$env:{varName}";
     }
 
-    private static string ConvertEnvironmentDifferencesToPowerShell(IEnumerable<EnvironmentVariableDifference> differences) {
+    private static string ConvertEnvironmentDifferencesToPowerShell(Collection<EnvironmentVariableDifference> differences) {
         var lines = new List<string>();
         var processedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -827,7 +551,8 @@ public class ProcessNodeViewModel : INotifyPropertyChanged {
         return script.ToString();
     }
 
-    private static string ConvertFullInvocationToPowerShell(string? applicationName, IEnumerable<KeyValuePair<string, string>> environmentVariables,
+    private static string ConvertFullInvocationToPowerShell(string? applicationName,
+            IEnumerable<KeyValuePair<string, string>> environmentVariables,
             string? workingDirectory, string? commandLine) {
         var script = new StringBuilder();
 
@@ -864,7 +589,8 @@ public class ProcessNodeViewModel : INotifyPropertyChanged {
         return script.ToString();
     }
 
-    private static void LaunchInWinDbg(string? applicationName, IEnumerable<KeyValuePair<string, string>> environmentVariables,
+    private static void LaunchInWinDbg(string? applicationName,
+            IEnumerable<KeyValuePair<string, string>>? environmentVariables,
             string? workingDirectory, string? commandLine, bool breakOnStart) {
         if (string.IsNullOrWhiteSpace(commandLine)) {
             return;
@@ -885,16 +611,16 @@ public class ProcessNodeViewModel : INotifyPropertyChanged {
             if (text[0] == '"') {
                 var endQuote = text.IndexOf('"', 1);
                 if (endQuote > 1) {
-                    arguments = endQuote + 1 < text.Length ? text.Substring(endQuote + 1).TrimStart() : string.Empty;
+                    arguments = endQuote + 1 < text.Length ? text.Substring(endQuote + 1).TrimStart() : "";
                 } else {
-                    arguments = string.Empty;
+                    arguments = "";
                 }
             } else {
                 var spaceIndex = text.IndexOf(' ');
                 if (spaceIndex >= 0) {
                     arguments = text[(spaceIndex + 1)..].TrimStart();
                 } else {
-                    arguments = string.Empty;
+                    arguments = "";
                 }
             }
 
@@ -950,8 +676,9 @@ public class ProcessNodeViewModel : INotifyPropertyChanged {
         }
     }
 
-    private static void LaunchInVisualStudio(string? applicationName, IEnumerable<KeyValuePair<string, string>> environmentVariables,
-            string? workingDirectory, string? commandLine, bool breakOnStart) {
+    private static void LaunchInVisualStudio(string? applicationName,
+            IEnumerable<KeyValuePair<string, string>>? environmentVariables,
+            string? workingDirectory, string? commandLine) {
         if (string.IsNullOrWhiteSpace(commandLine)) {
             return;
         }
@@ -979,17 +706,13 @@ public class ProcessNodeViewModel : INotifyPropertyChanged {
             if (text[0] == '"') {
                 var endQuote = text.IndexOf('"', 1);
                 if (endQuote > 1) {
-                    arguments = endQuote + 1 < text.Length ? text.Substring(endQuote + 1).TrimStart() : string.Empty;
+                    arguments = endQuote + 1 < text.Length ? text.Substring(endQuote + 1).TrimStart() : "";
                 } else {
-                    arguments = string.Empty;
+                    arguments = "";
                 }
             } else {
                 var spaceIndex = text.IndexOf(' ');
-                if (spaceIndex >= 0) {
-                    arguments = text[(spaceIndex + 1)..].TrimStart();
-                } else {
-                    arguments = string.Empty;
-                }
+                arguments = spaceIndex >= 0 ? text[(spaceIndex + 1)..].TrimStart() : "";
             }
 
             // Build Visual Studio command line arguments

@@ -3,7 +3,7 @@ using System.IO.Pipes;
 using System.Runtime.CompilerServices;
 using System.Text;
 
-namespace SpawnCamper.Server;
+namespace SpawnCamper.Core;
 
 public class LogServer(string pipeName) {
     public abstract record ProcessEvent(DateTime Timestamp, int ProcessId);
@@ -14,18 +14,18 @@ public class LogServer(string pipeName) {
 
     public record ProcessExit(DateTime Timestamp, int ProcessId, int ExitCode) : ProcessEvent(Timestamp, ProcessId);
 
-    /// Call to CreateProcess.
-    public record ProcessCreate(
+    /// Failed call to CreateProcess.
+    public record ProcessCreateFailure(
             DateTime Timestamp,
             int ProcessId,
-            int ChildId,
-            string? ApplicationName,
+            string? ExePath,
             string? CommandLine) : ProcessEvent(Timestamp, ProcessId);
 
     /// Log from a started-up process.
-    public record ProcessStart(
+    public record ProcessInfo(
             DateTime Timestamp,
             int ProcessId,
+            int ParentProcessId,
             string ExePath,
             string CommandLine,
             string WorkingDirectory,
@@ -41,7 +41,7 @@ public class LogServer(string pipeName) {
 
         private enum MessageType {
             ExitProcess,
-            CreateProcess,
+            CreateProcessFailure,
             ProcessStart,
         };
 
@@ -51,26 +51,26 @@ public class LogServer(string pipeName) {
             switch (type) {
                 case MessageType.ExitProcess: {
                     var exitCode = await _reader.ReadAsync<int>(token);
-                    await _reader.VerifyTerminator(token);
+                    await _reader.VerifyTerminatorAsync(token);
                     eventCb(new ProcessExit(timestamp, _clientId, exitCode));
                     break;
                 }
-                case MessageType.CreateProcess: {
-                    var childId = await _reader.ReadAsync<int>(token);
-                    var encoding = await _reader.ReadEncoding(token);
-                    var appName = await _reader.ReadString(encoding, token);
-                    var cmdLine = await _reader.ReadString(encoding, token);
-                    await _reader.VerifyTerminator(token);
-                    eventCb(new ProcessCreate(timestamp, _clientId, childId, appName, cmdLine));
+                case MessageType.CreateProcessFailure: {
+                    var encoding = await _reader.ReadEncodingAsync(token);
+                    var appName = await _reader.ReadStringAsync(encoding, token);
+                    var cmdLine = await _reader.ReadStringAsync(encoding, token);
+                    await _reader.VerifyTerminatorAsync(token);
+                    eventCb(new ProcessCreateFailure(timestamp, _clientId, appName, cmdLine));
                     break;
                 }
                 case MessageType.ProcessStart: {
-                    var exePath = (await _reader.ReadString(Encoding.Unicode, token))!;
-                    var cmdLine = (await _reader.ReadString(Encoding.Unicode, token))!;
-                    var workingDirectory = (await _reader.ReadString(Encoding.Unicode, token))!;
+                    var parentId = await _reader.ReadAsync<int>(token);
+                    var exePath = (await _reader.ReadStringAsync(Encoding.Unicode, token))!;
+                    var cmdLine = (await _reader.ReadStringAsync(Encoding.Unicode, token))!;
+                    var workingDirectory = (await _reader.ReadStringAsync(Encoding.Unicode, token))!;
                     var env = await _reader.ReadEnvironmentBlockAsync(Encoding.Unicode, token);
-                    await _reader.VerifyTerminator(token);
-                    eventCb(new ProcessStart(timestamp, _clientId, exePath, cmdLine, workingDirectory, env));
+                    await _reader.VerifyTerminatorAsync(token);
+                    eventCb(new ProcessInfo(timestamp, _clientId, parentId, exePath, cmdLine, workingDirectory, env));
                     break;
                 }
                 default:

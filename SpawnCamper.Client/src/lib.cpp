@@ -1,9 +1,9 @@
-#include <cstdio>
 #include <Windows.h>
 #include <detours.h>
 #include <memory>
 
 #include "Win32.hpp"
+#include "NtDll.hpp"
 #include "LoggerClient.hpp"
 #include "Utils.hpp"
 
@@ -37,13 +37,15 @@ namespace Detours {
             lpEnvironment, lpCurrentDirectory, lpStartupInfo, lpProcessInformation,
             g_dll_path.c_str(), Real::CreateProcessW);
 
-        // preserve the correct last error
+        if (success) {
+            return success;
+        }
+
         auto orig_err = GetLastError();
 
-        // only log the invocation after it finishes, so that we get the process ID
+        // log the failed invocation attempt
         Utils::catch_abort([&] {
-            auto pid = success ? lpProcessInformation->dwProcessId : 0;
-            g_logger->log_CreateProcess(pid, lpApplicationName, lpCommandLine);
+            g_logger->log_CreateProcess_failure(lpApplicationName, lpCommandLine);
         });
 
         SetLastError(orig_err);
@@ -67,13 +69,15 @@ namespace Detours {
             lpEnvironment, lpCurrentDirectory, lpStartupInfo, lpProcessInformation,
             g_dll_path.c_str(), Real::CreateProcessA);
 
-        // preserve the correct last error
+        if (success) {
+            return success;
+        }
+
         auto orig_err = GetLastError();
 
-        // only log the invocation after it finishes, so that we get the process ID
+        // log the failed invocation attempt
         Utils::catch_abort([&] {
-            auto pid = success ? lpProcessInformation->dwProcessId : 0;
-            g_logger->log_CreateProcess(pid, lpApplicationName, lpCommandLine);
+            g_logger->log_CreateProcess_failure(lpApplicationName, lpCommandLine);
         });
 
         SetLastError(orig_err);
@@ -124,10 +128,11 @@ static void setup_detour(bool attach) {
 }
 
 static void log_attach() {
+    auto parent_pid = NtDll::GetParentProcessId();
     auto exe_path = Win32::GetModuleFileNameW(nullptr);
     auto working_dir = Win32::GetCurrentDirectoryW();
     auto env = Win32::GetEnvironmentStringsW();
-    g_logger->log_new_process(exe_path.c_str(), GetCommandLineW(), working_dir.c_str(), env.get());
+    g_logger->log_new_process(parent_pid, exe_path.c_str(), GetCommandLineW(), working_dir.c_str(), env.get());
 }
 
 BOOL WINAPI DllMain(HINSTANCE hInst, DWORD dwReason, LPVOID) {

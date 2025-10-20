@@ -2,7 +2,7 @@
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace SpawnCamper.Server;
+namespace SpawnCamper.Core;
 
 internal sealed class LogReader(Stream stream) : IDisposable {
     private byte[] _buffer = new byte[1024];
@@ -20,14 +20,14 @@ internal sealed class LogReader(Stream stream) : IDisposable {
         return MemoryMarshal.Read<T>(_buffer);
     }
 
-    public async ValueTask VerifyTerminator(CancellationToken token) {
+    public async ValueTask VerifyTerminatorAsync(CancellationToken token) {
         var terminator = await ReadAsync<uint>(token);
         if (terminator != 0x012345678) {
             throw new InvalidDataException("Malformed message from the traced process, incorrect terminator found.");
         }
     }
 
-    public async ValueTask<Encoding> ReadEncoding(CancellationToken token) {
+    public async ValueTask<Encoding> ReadEncodingAsync(CancellationToken token) {
         var codePage = await ReadAsync<int>(token);
         var encoding = CodePagesEncodingProvider.Instance.GetEncoding(codePage);
         encoding ??= Encoding.GetEncoding(codePage);
@@ -37,7 +37,7 @@ internal sealed class LogReader(Stream stream) : IDisposable {
         return encoding;
     }
 
-    public async ValueTask<string?> ReadString(Encoding encoding, CancellationToken token) {
+    public async ValueTask<string?> ReadStringAsync(Encoding encoding, CancellationToken token) {
         var len = await ReadAsync<ulong>(token);
         if (len == unchecked((ulong) -1)) {
             return null;
@@ -55,9 +55,9 @@ internal sealed class LogReader(Stream stream) : IDisposable {
             Encoding encoding, CancellationToken token) {
         // this is a horrible hack, but doing this properly is even more horrible (I tried for ~2 hours and mostly failed)
         // we decode the whole buffer, including the null terminators, and hope that the encoding leaves them alone
-        var str = await ReadString(encoding, token);
+        var str = await ReadStringAsync(encoding, token);
 
-        var result = new Dictionary<string, string>();
+        var result = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
         var rest = str.AsSpan();
         while (!rest.IsEmpty) {
             var eqI = rest.IndexOf('=');

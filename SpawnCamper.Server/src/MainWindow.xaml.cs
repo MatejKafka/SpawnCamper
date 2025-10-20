@@ -3,19 +3,22 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
 using System.Windows.Input;
+using SpawnCamper.Core;
 using SpawnCamper.Server.UI.ViewModels;
 
 namespace SpawnCamper.Server.UI;
 
 public partial class MainWindow {
-    private readonly MainWindowViewModel _viewModel;
-    private readonly LogServer _logServer = new("SpawnCamper");
     private readonly CancellationTokenSource _cts = new();
+    private readonly LogServer _logServer = new("SpawnCamper");
+    private readonly TracedProcessTree _processTree = new();
+
+    private readonly MainWindowViewModel _viewModel;
     private Task? _serverTask;
 
     public MainWindow() {
         InitializeComponent();
-        _viewModel = new MainWindowViewModel(Dispatcher);
+        _viewModel = new MainWindowViewModel(Dispatcher, _processTree);
         DataContext = _viewModel;
     }
 
@@ -87,7 +90,8 @@ public partial class MainWindow {
             try {
                 await _logServer.RunAsync(evt => {
                     LogEvent(evt);
-                    _viewModel.HandleEvent(evt);
+                    // Ensure model updates happen on the UI thread to avoid cross-thread collection modification
+                    Dispatcher.Invoke(() => _processTree.HandleEvent(evt));
                 }, _cts.Token);
             } catch (OperationCanceledException) {
                 // expected on shutdown
@@ -112,10 +116,10 @@ public partial class MainWindow {
             case LogServer.ProcessExit exit:
                 Log($"ExitProcess({exit.ExitCode})");
                 break;
-            case LogServer.ProcessCreate invocation:
-                Log($"CreateProcess({invocation.ChildId}, \"{invocation.CommandLine}\", \"{invocation.ApplicationName}\")");
+            case LogServer.ProcessCreateFailure invocation:
+                Log($"CreateProcess(\"{invocation.CommandLine}\", \"{invocation.ExePath}\")");
                 break;
-            case LogServer.ProcessStart start:
+            case LogServer.ProcessInfo start:
                 Log($"{start}");
                 break;
         }
