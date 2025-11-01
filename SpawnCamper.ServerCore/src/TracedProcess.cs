@@ -14,7 +14,7 @@ public record TracedProcess(
 ) : INotifyPropertyChanged {
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public readonly Dictionary<string, string?>? EnvironmentDiff =
+    public readonly Dictionary<string, (string?, string?)>? EnvironmentDiff =
             Parent == null ? null : CalculateEnvironmentDiff(Parent.Environment, Environment);
 
     public int? ExitCode {
@@ -27,20 +27,18 @@ public record TracedProcess(
         set => UpdateProperty(out field, value);
     }
 
-    public TimeSpan? Duration => EndTime - StartTime;
-
-    private static Dictionary<string, string?> CalculateEnvironmentDiff(
+    private static Dictionary<string, (string?, string?)> CalculateEnvironmentDiff(
             Dictionary<string, string> parent, Dictionary<string, string> child) {
-        var diff = new Dictionary<string, string?>();
+        var diff = new Dictionary<string, (string?, string?)>();
         // erase keys that are missing from the child
-        foreach (var k in parent.Keys.Where(k => !child.ContainsKey(k))) {
-            diff[k] = null;
+        foreach (var (k, v) in parent.Where(k => !child.ContainsKey(k.Key))) {
+            diff[k] = (v, null);
         }
         // set values that differ
         foreach (var (k, v) in child) {
             var parentVal = parent.GetValueOrDefault(k);
             if (v != parentVal) {
-                diff[k] = v;
+                diff[k] = (parentVal, v);
             }
         }
         return diff;

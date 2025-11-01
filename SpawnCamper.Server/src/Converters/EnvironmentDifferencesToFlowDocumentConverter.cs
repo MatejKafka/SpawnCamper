@@ -20,7 +20,7 @@ public class EnvironmentDifferencesToFlowDocumentConverter : IValueConverter {
             Background = Brushes.Transparent,
             FontFamily = new FontFamily("Consolas"),
             FontSize = 12,
-            TextAlignment = TextAlignment.Left
+            TextAlignment = TextAlignment.Left,
         };
 
         if (value is IEnumerable<EnvironmentVariableDifference> diffs) {
@@ -40,18 +40,6 @@ public class EnvironmentDifferencesToFlowDocumentConverter : IValueConverter {
                 if (foreground != null) paragraph.Foreground = foreground;
                 if (background != null) paragraph.Background = background;
 
-                var prefixTextBlock = new TextBlock {
-                    Text = d.Kind == EnvironmentVariableDiffKind.Added ? "+" : "-",
-                    FontFamily = new FontFamily("Consolas"),
-                    FontWeight = FontWeights.Bold,
-                    Margin = new Thickness(0, 0, 6, 0),
-                    Focusable = false,
-                    IsHitTestVisible = false,
-                };
-
-                paragraph.Inlines.Add(new InlineUIContainer(prefixTextBlock) {
-                    BaselineAlignment = BaselineAlignment.Center,
-                });
                 paragraph.Inlines.Add(new Run($"{d.Key}={d.Value ?? ""}"));
                 document.Blocks.Add(paragraph);
             }

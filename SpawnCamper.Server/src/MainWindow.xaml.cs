@@ -1,6 +1,7 @@
 using System.Threading.Channels;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using SpawnCamper.Core;
 using SpawnCamper.Server.ViewModels;
@@ -70,19 +71,13 @@ public partial class MainWindow {
         }
 
         // Check if a FlowDocumentScrollViewer or RichTextBox has selected text
-        if (focusedElement is FlowDocumentScrollViewer flowDocViewer) {
-            var selection = flowDocViewer.Selection;
-            if (selection != null && !selection.IsEmpty) {
-                return true;
-            }
+        if (focusedElement is FlowDocumentScrollViewer {Selection.IsEmpty: false}) {
+            return true;
         }
 
         // Check for RichTextBox (in case it's used elsewhere)
-        if (focusedElement is RichTextBox richTextBox) {
-            var selection = richTextBox.Selection;
-            if (!selection.IsEmpty) {
-                return true;
-            }
+        if (focusedElement is RichTextBox {Selection.IsEmpty: false}) {
+            return true;
         }
 
         return false;
@@ -107,16 +102,19 @@ public partial class MainWindow {
         while (await _eventChannel.Reader.WaitToReadAsync(token)) {
             // batch-process all available events; WPF will only re-render the UI once we let go of the UI thread,
             //  so this effectively batches the processing to avoid expensive repaints
+            var i = 0;
             while (_eventChannel.Reader.TryRead(out var e)) {
+                i++;
                 _processTree.HandleEvent(e);
             }
+            Console.Error.WriteLine($"events: {i}");
         }
     }
 
     private void ShowServerError(Exception exception) {
         MessageBox.Show(this,
                 $"An error occurred while processing log events:\n{exception.Message}\n{exception.StackTrace}",
-                "SpawnCamper.Server",
+                "SpawnCamper server",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
     }
@@ -164,6 +162,39 @@ public partial class MainWindow {
         }
     }
 
+    private void FlowDocumentScrollViewer_OnPreviewMouseWheel(object sender, MouseWheelEventArgs e) {
+        // FlowDocumentScrollViewer captures mouse wheel events even with scrolling disabled
+        // Forward them to the parent ScrollViewer
+        if (sender is not System.Windows.Controls.FlowDocumentScrollViewer viewer) {
+            return;
+        }
+
+        // Find the parent ScrollViewer
+        var scrollViewer = FindVisualParent<ScrollViewer>(viewer);
+        if (scrollViewer == null) {
+            return;
+        }
+
+        // Re-raise the event on the ScrollViewer
+        var newEvent = new MouseWheelEventArgs(e.MouseDevice, e.Timestamp, e.Delta) {
+            RoutedEvent = UIElement.MouseWheelEvent,
+            Source = scrollViewer
+        };
+        scrollViewer.RaiseEvent(newEvent);
+        e.Handled = true;
+    }
+
+    private static T? FindVisualParent<T>(DependencyObject child) where T : DependencyObject {
+        var parent = System.Windows.Media.VisualTreeHelper.GetParent(child);
+        while (parent != null) {
+            if (parent is T typedParent) {
+                return typedParent;
+            }
+            parent = System.Windows.Media.VisualTreeHelper.GetParent(parent);
+        }
+        return null;
+    }
+
     private bool HandleProcessNavigation(KeyEventArgs e) {
         if (ProcessTree == null) {
             return false;
@@ -188,7 +219,7 @@ public partial class MainWindow {
     }
 
     private static ProcessNodeViewModel DetermineTargetProcess(Key key, ProcessNodeViewModel? current,
-            IReadOnlyList<ProcessNodeViewModel> orderedProcesses) {
+            List<ProcessNodeViewModel> orderedProcesses) {
         if (current == null) {
             return key == Key.Up ? orderedProcesses[^1] : orderedProcesses[0];
         }
@@ -211,7 +242,7 @@ public partial class MainWindow {
             Key.Down when orderedProcesses.Count == 1 => orderedProcesses[0],
             Key.Down when index < orderedProcesses.Count - 1 => orderedProcesses[index + 1],
             Key.Down => orderedProcesses[^1],
-            _ => orderedProcesses[0]
+            _ => orderedProcesses[0],
         };
     }
 
