@@ -12,11 +12,13 @@ public class TracedProcessTree {
     private readonly Dictionary<int, Node> _pidMap = [];
     private readonly ObservableCollection<Node> _rootProcesses = [];
 
+    public ReadOnlyObservableCollection<Node> RootProcesses {get;}
+
     public TracedProcessTree() {
         RootProcesses = new ReadOnlyObservableCollection<Node>(_rootProcesses);
     }
 
-    public ReadOnlyObservableCollection<Node> RootProcesses { get; }
+    public TracedProcess? GetProcess(int id) => _pidMap.Get(id)?.Process;
 
     public void HandleEvent(LogServer.ProcessEvent e) {
         switch (e) {
@@ -39,23 +41,20 @@ public class TracedProcessTree {
                 var newProcess = new TracedProcess(
                         i.ProcessId, parent?.Process, i.Timestamp,
                         i.ExePath, i.CommandLine, i.WorkingDirectory, i.Environment);
-                var node = new Node(newProcess, []);
+                // recording depth is useful in the GUI tree rendering, although it slightly breaks the abstraction
+                var node = new Node(newProcess, [], parent == null ? 0 : parent.Value.Depth + 1);
 
                 _pidMap[i.ProcessId] = node;
-                parent?.Children.Add(new(node));
                 if (parent == null) {
                     _rootProcesses.Add(node);
+                } else {
+                    parent.Value.Children.Add(node);
                 }
                 break;
             }
 
             case LogServer.ProcessExit ex: {
                 _pidMap[e.ProcessId].Process.ExitCode = ex.ExitCode;
-                break;
-            }
-
-            case LogServer.ProcessCreateFailure c: {
-                _pidMap[e.ProcessId].Children.Add(new(c.ExePath, c.CommandLine));
                 break;
             }
 
@@ -66,24 +65,5 @@ public class TracedProcessTree {
     }
 
     /// A tree node type that separates the process information from the hierarchy.
-    public record struct Node(TracedProcess Process, ObservableCollection<ProcessInvocation> Children);
-
-    public record struct FailedInvocation(string? ExePath, string? CommandLine);
-
-    /// Discriminated union of either a child process or a failed process invocation.
-    public readonly struct ProcessInvocation {
-        public readonly Node? Child = null;
-        private readonly FailedInvocation _failedInvocation = default;
-
-        public bool Success => Child != null;
-        public FailedInvocation? FailedInvocation => Success ? null : _failedInvocation;
-
-        public ProcessInvocation(Node? child) {
-            Child = child;
-        }
-
-        public ProcessInvocation(string? exePath, string? cmdLine) {
-            _failedInvocation = new FailedInvocation(exePath, cmdLine);
-        }
-    }
+    public record struct Node(TracedProcess Process, ObservableCollection<Node> Children, uint Depth);
 }

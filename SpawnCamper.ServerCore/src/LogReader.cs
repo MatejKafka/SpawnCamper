@@ -1,5 +1,4 @@
-﻿using System.IO;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Text;
 
 namespace SpawnCamper.Core;
@@ -25,16 +24,6 @@ internal sealed class LogReader(Stream stream) : IDisposable {
         if (terminator != 0x012345678) {
             throw new InvalidDataException("Malformed message from the traced process, incorrect terminator found.");
         }
-    }
-
-    public async ValueTask<Encoding> ReadEncodingAsync(CancellationToken token) {
-        var codePage = await ReadAsync<int>(token);
-        var encoding = CodePagesEncodingProvider.Instance.GetEncoding(codePage);
-        encoding ??= Encoding.GetEncoding(codePage);
-        if (encoding == null) {
-            throw new FormatException($"Unknown encoding passed by client: {codePage}");
-        }
-        return encoding;
     }
 
     public async ValueTask<string?> ReadStringAsync(Encoding encoding, CancellationToken token) {

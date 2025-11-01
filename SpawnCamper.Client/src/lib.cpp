@@ -32,24 +32,11 @@ namespace Detours {
         _In_ LPSTARTUPINFOW lpStartupInfo,
         _Out_ LPPROCESS_INFORMATION lpProcessInformation
     ) {
-        auto success = DetourCreateProcessWithDllExW(
+        // CreateProcess is not traced, we just need to ensure that the hook DLL is injected into the new process
+        return DetourCreateProcessWithDllExW(
             lpApplicationName, lpCommandLine, lpProcessAttributes, lpThreadAttributes, bInheritHandles, dwCreationFlags,
             lpEnvironment, lpCurrentDirectory, lpStartupInfo, lpProcessInformation,
             g_dll_path.c_str(), Real::CreateProcessW);
-
-        if (success) {
-            return success;
-        }
-
-        auto orig_err = GetLastError();
-
-        // log the failed invocation attempt
-        Utils::catch_abort([&] {
-            g_logger->log_CreateProcess_failure(lpApplicationName, lpCommandLine);
-        });
-
-        SetLastError(orig_err);
-        return success;
     }
 
     static BOOL WINAPI CreateProcessA(
@@ -64,24 +51,11 @@ namespace Detours {
         _In_ LPSTARTUPINFOA lpStartupInfo,
         _Out_ LPPROCESS_INFORMATION lpProcessInformation
     ) {
-        auto success = DetourCreateProcessWithDllExA(
+        // CreateProcess is not traced, we just need to ensure that the hook DLL is injected into the new process
+        return DetourCreateProcessWithDllExA(
             lpApplicationName, lpCommandLine, lpProcessAttributes, lpThreadAttributes, bInheritHandles, dwCreationFlags,
             lpEnvironment, lpCurrentDirectory, lpStartupInfo, lpProcessInformation,
             g_dll_path.c_str(), Real::CreateProcessA);
-
-        if (success) {
-            return success;
-        }
-
-        auto orig_err = GetLastError();
-
-        // log the failed invocation attempt
-        Utils::catch_abort([&] {
-            g_logger->log_CreateProcess_failure(lpApplicationName, lpCommandLine);
-        });
-
-        SetLastError(orig_err);
-        return success;
     }
 
     static DECLSPEC_NORETURN VOID WINAPI ExitProcess(

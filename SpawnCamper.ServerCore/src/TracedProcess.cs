@@ -55,11 +55,4 @@ public record TracedProcess(
         propName = propName[(propName.IndexOf(' ') + 1)..];
         PropertyChanged?.Invoke(this, new(propName));
     }
-
-    public readonly record struct ProcessInfo(
-            DateTime StartTime,
-            string ExePath,
-            string CommandLine,
-            string WorkingDirectory,
-            Dictionary<string, string> Environment);
 }

@@ -1,7 +1,7 @@
-﻿using System.IO;
-using System.IO.Pipes;
+﻿using System.IO.Pipes;
 using System.Runtime.CompilerServices;
 using System.Text;
+using SpawnCamper.Core.Utils;
 
 namespace SpawnCamper.Core;
 
@@ -13,13 +13,6 @@ public class LogServer(string pipeName) {
     public record ProcessDetach(DateTime Timestamp, int ProcessId) : ProcessEvent(Timestamp, ProcessId);
 
     public record ProcessExit(DateTime Timestamp, int ProcessId, int ExitCode) : ProcessEvent(Timestamp, ProcessId);
-
-    /// Failed call to CreateProcess.
-    public record ProcessCreateFailure(
-            DateTime Timestamp,
-            int ProcessId,
-            string? ExePath,
-            string? CommandLine) : ProcessEvent(Timestamp, ProcessId);
 
     /// Log from a started-up process.
     public record ProcessInfo(
@@ -33,7 +26,7 @@ public class LogServer(string pipeName) {
 
     private class Client(NamedPipeServerStream pipe, Action<ProcessEvent> eventCb) : IDisposable {
         private readonly LogReader _reader = new(pipe);
-        private readonly int _clientId = pipe.GetClientProcessId();
+        private readonly int _clientId = Native.GetNamedPipeClientProcessId(pipe.SafePipeHandle);
 
         public void Dispose() {
             _reader.Dispose();
@@ -41,7 +34,6 @@ public class LogServer(string pipeName) {
 
         private enum MessageType {
             ExitProcess,
-            CreateProcessFailure,
             ProcessStart,
         };
 
@@ -55,14 +47,6 @@ public class LogServer(string pipeName) {
                     eventCb(new ProcessExit(timestamp, _clientId, exitCode));
                     break;
                 }
-                case MessageType.CreateProcessFailure: {
-                    var encoding = await _reader.ReadEncodingAsync(token);
-                    var appName = await _reader.ReadStringAsync(encoding, token);
-                    var cmdLine = await _reader.ReadStringAsync(encoding, token);
-                    await _reader.VerifyTerminatorAsync(token);
-                    eventCb(new ProcessCreateFailure(timestamp, _clientId, appName, cmdLine));
-                    break;
-                }
                 case MessageType.ProcessStart: {
                     var parentId = await _reader.ReadAsync<int>(token);
                     var exePath = (await _reader.ReadStringAsync(Encoding.Unicode, token))!;
@@ -74,7 +58,7 @@ public class LogServer(string pipeName) {
                     break;
                 }
                 default:
-                    throw new SwitchExpressionException(type);
+                    throw new SwitchExpressionException($"Received an unknown message type from the client: {type}");
             }
         }
 
@@ -92,19 +76,26 @@ public class LogServer(string pipeName) {
     }
 
     public async Task RunAsync(Action<ProcessEvent> eventCb, CancellationToken token) {
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
         while (true) {
             var pipeServer = new NamedPipeServerStream(pipeName, PipeDirection.In,
                     NamedPipeServerStream.MaxAllowedServerInstances, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
 
             try {
-                await pipeServer.WaitForConnectionAsync(token);
+                await pipeServer.WaitForConnectionAsync(cts.Token);
+            } catch (IOException e) when (e.HResult == unchecked((int)0x800700E8)) {
+                // The pipe is being closed.
+                // this exception is sporadically thrown when a client attempts to connect while the server is initializing,
+                //  I'm not yet sure why this happens
+                await pipeServer.DisposeAsync();
+                continue; // retry
             } catch {
                 await pipeServer.DisposeAsync();
                 throw;
             }
 
             // do not block the connection loop
-            RunTask(new Client(pipeServer, eventCb).RunAsync(token));
+            RunTask(new Client(pipeServer, eventCb).RunAsync(cts.Token));
         }
     }
 

@@ -36,25 +36,10 @@ public:
         write<uint32_t>(TERMINATOR_MAGIC);
     }
 
-    template<typename CharT>
-    void log_CreateProcess_failure(const CharT* lpApplicationName, const CharT* lpCommandLine) {
-        std::unique_lock lock(m_pipe_mutex);
-
-        write_message_header(MessageType::CreateProcessFailure);
-        // the code page may be set per-process, so we need to store the code page of the original process
-        //  so that the server can decode it
-        // 1200 = UTF-16LE
-        write<uint32_t>(std::is_same_v<CharT, wchar_t> ? 1200 : GetACP());
-        write_string(lpApplicationName);
-        write_string(lpCommandLine);
-        write<uint32_t>(TERMINATOR_MAGIC);
-    }
-
 private:
     static constexpr uint32_t TERMINATOR_MAGIC = 0x012345678;
     enum class MessageType : uint16_t {
         ExitProcess,
-        CreateProcessFailure,
         ProcessStart,
     };
 
