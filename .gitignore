@@ -1,2 +1,7 @@
-/.idea/
 /bin/
+
+.idea/
+
+/*/bin/
+/*/obj
+/*/cmake-build-*/
