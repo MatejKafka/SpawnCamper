@@ -1,20 +1,22 @@
+using System.Threading.Channels;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
-using System.Windows.Documents;
 using System.Windows.Input;
 using SpawnCamper.Core;
-using SpawnCamper.Server.UI.ViewModels;
+using SpawnCamper.Server.ViewModels;
 
-namespace SpawnCamper.Server.UI;
+namespace SpawnCamper.Server;
 
 public partial class MainWindow {
     private readonly CancellationTokenSource _cts = new();
     private readonly LogServer _logServer = new("SpawnCamper");
     private readonly TracedProcessTree _processTree = new();
+    private readonly Channel<LogServer.ProcessEvent> _eventChannel =
+            Channel.CreateUnbounded<LogServer.ProcessEvent>(new UnboundedChannelOptions {SingleReader = true});
 
     private readonly MainWindowViewModel _viewModel;
     private Task? _serverTask;
+    private Task? _eventProcessingTask;
 
     public MainWindow() {
         InitializeComponent();
@@ -24,6 +26,7 @@ public partial class MainWindow {
 
     protected override void OnInitialized(EventArgs e) {
         base.OnInitialized(e);
+        _eventProcessingTask = ProcessEventsAsync(_cts.Token);
         StartServer();
     }
 
@@ -89,9 +92,8 @@ public partial class MainWindow {
         _serverTask = Task.Run(async () => {
             try {
                 await _logServer.RunAsync(evt => {
-                    LogEvent(evt);
-                    // Ensure model updates happen on the UI thread to avoid cross-thread collection modification
-                    Dispatcher.Invoke(() => _processTree.HandleEvent(evt));
+                    // enqueue events without blocking - client processes won't wait for GUI
+                    _eventChannel.Writer.TryWrite(evt);
                 }, _cts.Token);
             } catch (OperationCanceledException) {
                 // expected on shutdown
@@ -101,27 +103,13 @@ public partial class MainWindow {
         });
     }
 
-    private static void LogEvent(LogServer.ProcessEvent e) {
-        void Log(string message) {
-            Console.Error.WriteLine($"[{e.ProcessId}] {message}");
-        }
-
-        switch (e) {
-            case LogServer.ProcessAttach:
-                Log("attach");
-                break;
-            case LogServer.ProcessDetach:
-                Log("detach");
-                break;
-            case LogServer.ProcessExit exit:
-                Log($"ExitProcess({exit.ExitCode})");
-                break;
-            case LogServer.ProcessCreateFailure invocation:
-                Log($"CreateProcess(\"{invocation.CommandLine}\", \"{invocation.ExePath}\")");
-                break;
-            case LogServer.ProcessInfo start:
-                Log($"{start}");
-                break;
+    private async Task ProcessEventsAsync(CancellationToken token) {
+        while (await _eventChannel.Reader.WaitToReadAsync(token)) {
+            // batch-process all available events; WPF will only re-render the UI once we let go of the UI thread,
+            //  so this effectively batches the processing to avoid expensive repaints
+            while (_eventChannel.Reader.TryRead(out var e)) {
+                _processTree.HandleEvent(e);
+            }
         }
     }
 
@@ -135,9 +123,16 @@ public partial class MainWindow {
 
     protected override async void OnClosed(EventArgs e) {
         await _cts.CancelAsync();
+
+        // signal that no more events will be sent
+        _eventChannel.Writer.Complete();
+
         try {
             if (_serverTask != null) {
                 await _serverTask;
+            }
+            if (_eventProcessingTask != null) {
+                await _eventProcessingTask;
             }
         } catch {
             // ignored – shutting down
