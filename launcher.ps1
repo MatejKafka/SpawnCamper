@@ -10,7 +10,7 @@ $PSCommandPath = $Path.FullName
 $PSScriptRoot = $Path.Directory.FullName
 
 if (Test-Path \\.\\pipe\\SpawnCamper) {
-	Write-Host "SpawnCamper GUI is already running, connecting to the existing instance..."
+	Write-Host "SpawnCamper server is already running, connecting to the existing instance..."
 } else {
     Start-Process $PSScriptRoot\server\SpawnCamper.Server.exe
     # wait for the named pipe server to start
@@ -19,4 +19,11 @@ if (Test-Path \\.\\pipe\\SpawnCamper) {
     }
 }
 
-& $PSScriptRoot\SpawnCamper.exe @Args
+
+if (@($Args).Count -eq 1 -and $Args[0] -is [scriptblock]) {
+	# if launching a scriptblock, run a new instance of PowerShell under the tracer
+	$PwshExe = (Get-Process -Id $PID).Path
+	& $PSScriptRoot\SpawnCamper.exe $PwshExe -noprofile @Args
+} else {
+	& $PSScriptRoot\SpawnCamper.exe @Args
+}
