@@ -1,10 +1,10 @@
-<Window x:Class="SpawnCamper.Server.UI.MainWindow"
+<Window x:Class="SpawnCamper.Server.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:converters="clr-namespace:SpawnCamper.Server.UI.Converters"
-        xmlns:vm="clr-namespace:SpawnCamper.Server.UI.ViewModels"
+        xmlns:viewModels="clr-namespace:SpawnCamper.Server.ViewModels"
+        xmlns:converters="clr-namespace:SpawnCamper.Server.Converters"
         mc:Ignorable="d"
         Title="SpawnCamper"
         Width="1100"
@@ -12,9 +12,6 @@
         MinWidth="900"
         MinHeight="500">
     <Window.Resources>
-        <converters:TreeLevelToIndentConverter x:Key="TreeLevelToIndentConverter"
-                                               IndentSize="18"/>
-
         <Style x:Key="TreeToggleButtonStyle"
                TargetType="ToggleButton">
             <Setter Property="Focusable"
@@ -155,8 +152,7 @@
                                                                   AddedForeground="{StaticResource DiffAddedForegroundBrush}"
                                                                   AddedBackground="{StaticResource DiffAddedBackgroundBrush}"
                                                                   RemovedForeground="{StaticResource DiffRemovedForegroundBrush}"
-                                                                  RemovedBackground="{StaticResource DiffRemovedBackgroundBrush}"
-                                                                  DefaultForeground="{StaticResource {x:Static SystemColors.ControlTextBrushKey}}"/>
+                                                                  RemovedBackground="{StaticResource DiffRemovedBackgroundBrush}"/>
 
         <Style x:Key="SelectableTextBoxStyle"
                TargetType="TextBox">
@@ -192,7 +188,7 @@
         </Style>
 
         <HierarchicalDataTemplate x:Key="ProcessNodeTemplate"
-                                  DataType="{x:Type vm:ProcessNodeViewModel}"
+                                  DataType="{x:Type viewModels:ProcessNodeViewModel}"
                                   ItemsSource="{Binding Children}">
             <Grid Margin="0,1">
                 <Grid.ColumnDefinitions>
@@ -210,7 +206,7 @@
                 <Grid Grid.Column="0"
                       VerticalAlignment="Center">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="{Binding RelativeSource={RelativeSource AncestorType=TreeViewItem}, Converter={StaticResource TreeLevelToIndentConverter}}"/>
+                        <ColumnDefinition Width="{Binding IndentWidth}"/>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
@@ -297,13 +293,13 @@
                 </Grid>
 
                 <TextBlock Grid.Column="3"
-                           Text="{Binding CommandLineDisplay}"
+                           Text="{Binding CommandLine}"
                            VerticalAlignment="Center"
                            TextTrimming="CharacterEllipsis"/>
             </Grid>
         </HierarchicalDataTemplate>
 
-        <DataTemplate DataType="{x:Type vm:ProcessNodeViewModel}">
+        <DataTemplate DataType="{x:Type viewModels:ProcessNodeViewModel}">
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="8">
                     <TextBox Text="{Binding DisplayLabelSingleLine, Mode=OneWay}"
@@ -323,7 +319,6 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
@@ -407,46 +402,6 @@
                                  Text="{Binding WorkingDirectory, Mode=OneWay, TargetNullValue=(not reported)}"
                                  Style="{StaticResource SelectableTextBoxStyle}"
                                  TextWrapping="Wrap"/>
-
-                        <TextBlock Grid.Row="8"
-                                   Grid.Column="0"
-                                   Text="Failure:"
-                                   FontWeight="SemiBold">
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="Visibility"
-                                            Value="Collapsed"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsCreationFailure}"
-                                                     Value="True">
-                                            <Setter Property="Visibility"
-                                                    Value="Visible"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
-                        <TextBox Grid.Row="5"
-                                 Grid.Column="1"
-                                 Text="{Binding FailureReason, Mode=OneWay}"
-                                 TextWrapping="Wrap">
-                            <TextBox.Style>
-                                <Style TargetType="TextBox"
-                                       BasedOn="{StaticResource SelectableTextBoxStyle}">
-                                    <Setter Property="TextWrapping"
-                                            Value="Wrap"/>
-                                    <Setter Property="Visibility"
-                                            Value="Collapsed"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsCreationFailure}"
-                                                     Value="True">
-                                            <Setter Property="Visibility"
-                                                    Value="Visible"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBox.Style>
-                        </TextBox>
                     </Grid>
 
                     <StackPanel Orientation="Horizontal"
@@ -585,7 +540,7 @@
                         <Border Background="#11000000"
                                 Padding="8"
                                 Margin="0,4,0,0">
-                            <TextBox Text="{Binding CommandLineDisplay, Mode=OneWay}"
+                            <TextBox Text="{Binding CommandLine, Mode=OneWay}"
                                      Style="{StaticResource SelectableTextBoxStyle}"
                                      TextWrapping="Wrap"/>
                         </Border>

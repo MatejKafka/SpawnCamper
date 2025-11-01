@@ -1,23 +1,20 @@
-using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Media;
-using SpawnCamper.Server.UI.ViewModels;
+using SpawnCamper.Server.ViewModels;
 
-namespace SpawnCamper.Server.UI.Converters;
+namespace SpawnCamper.Server.Converters;
 
 public class EnvironmentDifferencesToFlowDocumentConverter : IValueConverter {
-    public Brush? AddedForeground { get; set; }
-    public Brush? AddedBackground { get; set; }
-    public Brush? RemovedForeground { get; set; }
-    public Brush? RemovedBackground { get; set; }
-    public Brush? DefaultForeground { get; set; }
+    public Brush? AddedForeground {get; init;}
+    public Brush? AddedBackground {get; init;}
+    public Brush? RemovedForeground {get; init;}
+    public Brush? RemovedBackground {get; init;}
 
-    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture) {
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) {
         var document = new FlowDocument {
             PagePadding = new Thickness(0),
             Background = Brushes.Transparent,
@@ -26,51 +23,36 @@ public class EnvironmentDifferencesToFlowDocumentConverter : IValueConverter {
             TextAlignment = TextAlignment.Left
         };
 
-        if (value is IEnumerable<EnvironmentVariableDifference> differences) {
-            foreach (var difference in differences) {
+        if (value is IEnumerable<EnvironmentVariableDifference> diffs) {
+            foreach (var d in diffs) {
+                var (foreground, background) = d.Kind switch {
+                    EnvironmentVariableDiffKind.Added => (AddedForeground, AddedBackground),
+                    EnvironmentVariableDiffKind.Removed => (RemovedForeground, RemovedBackground),
+                    _ => (null, null),
+                };
+
                 var paragraph = new Paragraph {
                     Margin = new Thickness(0),
                     Padding = new Thickness(0),
-                    TextAlignment = TextAlignment.Left
+                    TextAlignment = TextAlignment.Left,
                 };
 
-                Brush? foreground = null;
-                if (difference.IsAdded) {
-                    foreground = AddedForeground ?? DefaultForeground;
-                    if (AddedBackground != null) {
-                        paragraph.Background = AddedBackground;
-                    }
-                } else if (difference.IsRemoved) {
-                    foreground = RemovedForeground ?? DefaultForeground;
-                    if (RemovedBackground != null) {
-                        paragraph.Background = RemovedBackground;
-                    }
-                } else {
-                    foreground = DefaultForeground;
-                }
-
-                var resolvedForeground = foreground ?? DefaultForeground ?? Brushes.Black;
+                if (foreground != null) paragraph.Foreground = foreground;
+                if (background != null) paragraph.Background = background;
 
                 var prefixTextBlock = new TextBlock {
-                    Text = difference.Prefix,
+                    Text = d.Kind == EnvironmentVariableDiffKind.Added ? "+" : "-",
                     FontFamily = new FontFamily("Consolas"),
                     FontWeight = FontWeights.Bold,
                     Margin = new Thickness(0, 0, 6, 0),
-                    Foreground = resolvedForeground,
-                    Background = paragraph.Background,
                     Focusable = false,
-                    IsHitTestVisible = false
+                    IsHitTestVisible = false,
                 };
 
-                var prefixContainer = new InlineUIContainer(prefixTextBlock) {
-                    BaselineAlignment = BaselineAlignment.Center
-                };
-
-                var valueRun = new Run(difference.ValueText);
-                valueRun.Foreground = resolvedForeground;
-
-                paragraph.Inlines.Add(prefixContainer);
-                paragraph.Inlines.Add(valueRun);
+                paragraph.Inlines.Add(new InlineUIContainer(prefixTextBlock) {
+                    BaselineAlignment = BaselineAlignment.Center,
+                });
+                paragraph.Inlines.Add(new Run($"{d.Key}={d.Value ?? ""}"));
                 document.Blocks.Add(paragraph);
             }
         }

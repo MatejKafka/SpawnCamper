@@ -4,7 +4,7 @@ using System.ComponentModel;
 using System.Windows.Threading;
 using SpawnCamper.Core;
 
-namespace SpawnCamper.Server.UI.ViewModels;
+namespace SpawnCamper.Server.ViewModels;
 
 public class MainWindowViewModel : INotifyPropertyChanged {
     private readonly Dispatcher _dispatcher;
@@ -14,7 +14,7 @@ public class MainWindowViewModel : INotifyPropertyChanged {
     public MainWindowViewModel(Dispatcher dispatcher, TracedProcessTree processTree) {
         _dispatcher = dispatcher;
         _processTree = processTree;
-        RootProcesses = new ObservableCollection<ProcessNodeViewModel>();
+        RootProcesses = [];
 
         // Subscribe to root process changes
         if (_processTree.RootProcesses is INotifyCollectionChanged collection) {
@@ -23,7 +23,7 @@ public class MainWindowViewModel : INotifyPropertyChanged {
 
         // Initialize with existing root processes (if any)
         foreach (var node in _processTree.RootProcesses) {
-            RootProcesses.Add(new ProcessNodeViewModel(new TracedProcessTree.ProcessInvocation(node)));
+            RootProcesses.Add(new ProcessNodeViewModel(node));
         }
     }
 
@@ -38,7 +38,7 @@ public class MainWindowViewModel : INotifyPropertyChanged {
     private void HandleRootProcessesChanged(NotifyCollectionChangedEventArgs e) {
         if (e.Action == NotifyCollectionChangedAction.Add && e.NewItems != null) {
             foreach (TracedProcessTree.Node node in e.NewItems) {
-                RootProcesses.Add(new ProcessNodeViewModel(new TracedProcessTree.ProcessInvocation(node)));
+                RootProcesses.Add(new ProcessNodeViewModel(node));
             }
         }
         // Handle other collection change types if needed (Reset, Remove, etc.)
@@ -46,7 +46,7 @@ public class MainWindowViewModel : INotifyPropertyChanged {
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public ObservableCollection<ProcessNodeViewModel> RootProcesses { get; }
+    public ObservableCollection<ProcessNodeViewModel> RootProcesses {get;}
 
     public ProcessNodeViewModel? SelectedProcess {
         get => _selectedProcess;

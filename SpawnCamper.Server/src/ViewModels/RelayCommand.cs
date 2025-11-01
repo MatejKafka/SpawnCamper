@@ -1,7 +1,6 @@
-using System;
 using System.Windows.Input;
 
-namespace SpawnCamper.Server.UI.ViewModels;
+namespace SpawnCamper.Server.ViewModels;
 
 public class RelayCommand : ICommand {
     private readonly Action _execute;

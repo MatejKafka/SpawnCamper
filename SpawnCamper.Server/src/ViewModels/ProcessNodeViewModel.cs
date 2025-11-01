@@ -3,40 +3,40 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Input;
 using SpawnCamper.Core;
+using SpawnCamper.Core.Utils;
 
-namespace SpawnCamper.Server.UI.ViewModels;
+namespace SpawnCamper.Server.ViewModels;
 
 /// <summary>
-/// ViewModel wrapper for TracedProcessTree.ProcessInvocation, representing either a successful
-/// process or a failed process creation in the tree view.
+/// ViewModel wrapper for TracedProcessTree.Node, representing a successfully created process in the tree view.
 /// </summary>
-public class ProcessNodeViewModel : INotifyPropertyChanged {
-    private readonly TracedProcessTree.ProcessInvocation _invocation;
+public partial class ProcessNodeViewModel : INotifyPropertyChanged {
+    private readonly TracedProcessTree.Node _node;
     private readonly ObservableCollection<ProcessNodeViewModel> _children = [];
 
-    public ProcessNodeViewModel(TracedProcessTree.ProcessInvocation invocation) {
-        _invocation = invocation;
+    public ProcessNodeViewModel(TracedProcessTree.Node node) {
+        _node = node;
 
-        // Subscribe to child collection changes if this is a successful process
-        if (_invocation.Child is {} node) {
-            node.Children.CollectionChanged += OnChildrenCollectionChanged;
-            // Initialize children
-            foreach (var childInvocation in node.Children) {
-                _children.Add(new ProcessNodeViewModel(childInvocation));
-            }
-            // Subscribe to property changes on the process
-            node.Process.PropertyChanged += OnProcessPropertyChanged;
+        // Subscribe to child collection changes
+        _node.Children.CollectionChanged += OnChildrenCollectionChanged;
+        // Initialize children
+        foreach (var childNode in _node.Children) {
+            _children.Add(new ProcessNodeViewModel(childNode));
         }
+        // Subscribe to property changes on the process
+        _node.Process.PropertyChanged += OnProcessPropertyChanged;
     }
 
     private void OnChildrenCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) {
         if (e.Action == NotifyCollectionChangedAction.Add && e.NewItems != null) {
-            foreach (TracedProcessTree.ProcessInvocation invocation in e.NewItems) {
-                _children.Add(new ProcessNodeViewModel(invocation));
+            foreach (TracedProcessTree.Node node in e.NewItems) {
+                _children.Add(new ProcessNodeViewModel(node));
             }
         }
         // Handle other collection change types if needed
@@ -63,37 +63,36 @@ public class ProcessNodeViewModel : INotifyPropertyChanged {
                 OnPropertyChanged(nameof(ShowSpinner));
                 OnPropertyChanged(nameof(IsRunning));
                 OnPropertyChanged(nameof(IsDetached));
+                OnPropertyChanged(nameof(ExitDisplayText)); // Exit display depends on IsActive and IsDetached
+                OnPropertyChanged(nameof(StatusText)); // Status text depends on IsActive
                 break;
         }
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    // Expose the underlying process or failed invocation information
-    private TracedProcess? Process => _invocation.Child?.Process;
-    private TracedProcessTree.FailedInvocation? FailedInvocation => _invocation.FailedInvocation;
+    // Expose the underlying process - now guaranteed to be non-null
+    private TracedProcess Process => _node.Process;
 
-    public bool IsCreationFailure => !_invocation.Success;
-    public bool HasStarted => Process != null;
-
-    public int ProcessId => Process?.ProcessId ?? 0;
+    public int ProcessId => Process.ProcessId;
+    public uint Depth => _node.Depth;
+    public double IndentWidth => Depth * 18.0; // 18 pixels per level
     public ObservableCollection<ProcessNodeViewModel> Children => _children;
 
     // Environment-related properties
-    public ObservableCollection<KeyValuePair<string, string>>? EnvironmentVariables {
+    [field: AllowNull, MaybeNull]
+    public ObservableCollection<KeyValuePair<string, string>> EnvironmentVariables {
         get {
-            if (field == null && Process != null) {
-                field = new ObservableCollection<KeyValuePair<string, string>>(
-                        Process.Environment.OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase));
-            }
-            return field ?? [];
+            field ??= new ObservableCollection<KeyValuePair<string, string>>(
+                    Process.Environment.OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase));
+            return field;
         }
     }
 
     [field: AllowNull, MaybeNull]
     public ObservableCollection<EnvironmentVariableDifference> EnvironmentDifferences {
         get {
-            if (field == null && Process?.EnvironmentDiff != null) {
+            if (field == null && Process.EnvironmentDiff != null) {
                 field = new ObservableCollection<EnvironmentVariableDifference>();
                 foreach (var (key, value) in
                          Process.EnvironmentDiff.OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase)) {
@@ -125,29 +124,18 @@ public class ProcessNodeViewModel : INotifyPropertyChanged {
         }
     }
 
-    public string EnvironmentDifferencesDisplay => EnvironmentDifferences.Count == 0
-            ? ""
-            : string.Join(Environment.NewLine, EnvironmentDifferences.Select(diff => diff.DisplayText));
-
-    public ProcessNodeViewModel? Parent => Process?.Parent == null
-            ? null
-            : new ProcessNodeViewModel(
-                    new TracedProcessTree.ProcessInvocation(new TracedProcessTree.Node(Process.Parent, [])));
-
-    public bool IsRoot => Process?.Parent == null;
-    public string? ApplicationName => Process?.ExePath ?? FailedInvocation?.ExePath;
-    public string? CommandLine => Process?.CommandLine ?? FailedInvocation?.CommandLine;
-    public string? WorkingDirectory => Process?.WorkingDirectory;
-    public bool IsActive => Process?.EndTime == null && HasStarted && !IsCreationFailure;
+    public string ApplicationName => Process.ExePath;
+    public string CommandLine => Process.CommandLine;
+    public string WorkingDirectory => Process.WorkingDirectory;
+    public bool IsActive => Process.EndTime == null;
     public bool IsDetached => Process is {EndTime: not null, ExitCode: null};
-    public int? ExitCode => Process?.ExitCode;
-    public DateTime? AttachTime => Process?.StartTime;
-    public DateTime? EndTime => Process?.EndTime;
-    public bool ShowSpinner => IsActive && !IsCreationFailure;
+    public int? ExitCode => Process.ExitCode;
+    public DateTime StartTime => Process.StartTime;
+    public DateTime? EndTime => Process.EndTime;
+    public bool ShowSpinner => IsActive;
 
     public string ExitDisplayText {
         get {
-            if (IsCreationFailure) return "Failed";
             if (IsActive) return "";
             if (ExitCode.HasValue) return ExitCode.Value.ToString();
             if (IsDetached) return "<unknown>";
@@ -155,32 +143,27 @@ public class ProcessNodeViewModel : INotifyPropertyChanged {
         }
     }
 
-    public bool IsRunning => IsActive && HasStarted && !IsCreationFailure;
+    public bool IsRunning => IsActive;
 
     public string StatusText {
         get {
-            if (IsCreationFailure) return "CreateProcess failed";
             if (IsActive) return "Running";
             if (ExitCode.HasValue) return $"Exited ({ExitCode.Value})";
             if (IsDetached) return "Terminated";
-            if (HasStarted) return "Stopped";
-            return "Waiting to start";
+            return "Stopped";
         }
     }
 
-    public string ProcessIdDisplay => IsCreationFailure ? "—" : ProcessId.ToString();
+    public string ProcessIdDisplay => ProcessId.ToString();
 
-    public string AttachTimeDisplay => AttachTime?.ToLocalTime().ToString("HH:mm:ss.fff") ?? "—";
+    public string AttachTimeDisplay => StartTime.ToLocalTime().ToString("HH:mm:ss.fff");
 
     public string DetachTimeDisplay => EndTime?.ToLocalTime().ToString("HH:mm:ss.fff") ?? "—";
 
     public string DurationDisplay {
         get {
-            if (AttachTime == null) {
-                return "—";
-            }
             var endTime = EndTime ?? DateTime.UtcNow;
-            var duration = endTime - AttachTime.Value;
+            var duration = endTime - StartTime;
             if (duration.TotalDays >= 1) {
                 return $"{duration.TotalDays:F2} days";
             }
@@ -197,49 +180,16 @@ public class ProcessNodeViewModel : INotifyPropertyChanged {
         }
     }
 
-    public string? FailureReason {
-        get {
-            if (!IsCreationFailure) return null;
-            var cmdLine = FailedInvocation?.CommandLine;
-            var exePath = FailedInvocation?.ExePath;
-            return string.IsNullOrWhiteSpace(cmdLine)
-                    ? string.IsNullOrWhiteSpace(exePath)
-                            ? "CreateProcess failed"
-                            : $"CreateProcess failed: {exePath}"
-                    : $"CreateProcess failed: {cmdLine}";
-        }
-    }
-
-    public string DisplayLabel {
-        get {
-            if (IsCreationFailure) {
-                return FailureReason ?? "CreateProcess failed";
-            }
-            if (!string.IsNullOrWhiteSpace(CommandLine)) {
-                return CommandLine;
-            }
-            if (!string.IsNullOrWhiteSpace(ApplicationName)) {
-                return ApplicationName;
-            }
-            return ProcessId.ToString();
-        }
-    }
-
+    public string DisplayLabel => !string.IsNullOrWhiteSpace(CommandLine) ? CommandLine : ApplicationName;
     public string DisplayLabelSingleLine => ToSingleLine(DisplayLabel);
 
-    public string CommandLineDisplay => IsCreationFailure
-            ? FailureReason ?? CommandLine ?? ApplicationName ?? "(CreateProcess failed)"
-            : string.IsNullOrWhiteSpace(CommandLine)
-                    ? ApplicationName ?? "(not reported)"
-                    : CommandLine;
-
-    public bool HasEnvironment => Process is {Environment.Count: > 0};
-    public bool HasEnvironmentDifferences => Process?.EnvironmentDiff is {Count: > 0};
+    public bool HasEnvironment => Process.Environment.Count > 0;
+    public bool HasEnvironmentDifferences => Process.EnvironmentDiff is {Count: > 0};
 
     public string BinaryNameDisplay {
         get {
             var name = ExtractBinaryName(ApplicationName, CommandLine);
-            return !string.IsNullOrEmpty(name) ? name : IsCreationFailure ? "(CreateProcess failed)" : "(unknown)";
+            return !string.IsNullOrEmpty(name) ? name : "(unknown)";
         }
     }
 
@@ -256,13 +206,13 @@ public class ProcessNodeViewModel : INotifyPropertyChanged {
 
     [field: AllowNull, MaybeNull]
     public ICommand CopyFullEnvironmentAsPowerShellCommand => field ??= new RelayCommand(
-            () => Clipboard.SetText(ConvertFullEnvironmentToPowerShell(EnvironmentVariables!)),
+            () => Clipboard.SetText(ConvertFullEnvironmentToPowerShell(EnvironmentVariables)),
             () => HasEnvironment);
 
     [field: AllowNull, MaybeNull]
     public ICommand CopyFullInvocationCommand => field ??= new RelayCommand(
             () => Clipboard.SetText(ConvertFullInvocationToPowerShell(
-                    ApplicationName, EnvironmentVariables!, WorkingDirectory, CommandLine)),
+                    ApplicationName, EnvironmentVariables, WorkingDirectory, CommandLine)),
             () => HasEnvironment && !string.IsNullOrWhiteSpace(CommandLine));
 
     [field: AllowNull, MaybeNull]
@@ -378,96 +328,43 @@ public class ProcessNodeViewModel : INotifyPropertyChanged {
         return spaceIndex >= 0 ? text[..spaceIndex] : text;
     }
 
-    private static string ConvertCommandLineToPowerShell(string? applicationName, string? commandLine) {
-        if (string.IsNullOrWhiteSpace(commandLine)) {
-            return "";
-        }
-
-        // Use the absolute path from applicationName if available
-        var executable = applicationName;
-        if (string.IsNullOrWhiteSpace(executable)) {
-            // Fallback: parse from command line if applicationName is not available
-            var text = commandLine.Trim();
-            if (text.Length == 0) {
-                return "";
-            }
-
-            if (text[0] == '"') {
-                var endQuote = text.IndexOf('"', 1);
-                if (endQuote > 1) {
-                    executable = text.Substring(1, endQuote - 1);
-                } else {
-                    executable = text.Trim('"');
-                }
-            } else {
-                var spaceIndex = text.IndexOf(' ');
-                if (spaceIndex >= 0) {
-                    executable = text[..spaceIndex];
-                } else {
-                    executable = text;
-                }
-            }
-        }
-
-        // Parse the command line to extract arguments (skip argv[0])
-        var text2 = commandLine.Trim();
-        string arguments;
-
-        if (text2[0] == '"') {
-            var endQuote = text2.IndexOf('"', 1);
-            if (endQuote > 1) {
-                arguments = endQuote + 1 < text2.Length ? text2.Substring(endQuote + 1).TrimStart() : "";
-            } else {
-                arguments = "";
-            }
+    private static string ConvertCommandLineToPowerShell(string applicationName, string commandLine) {
+        var argv = Native.CommandLineToArgv(commandLine);
+        if (argv.Length == 0) {
+            return ArgvToPowerShell([applicationName]);
         } else {
-            var spaceIndex = text2.IndexOf(' ');
-            if (spaceIndex >= 0) {
-                arguments = text2[(spaceIndex + 1)..].TrimStart();
-            } else {
-                arguments = "";
-            }
+            // argv[0] can be an arbitrary string, we want to use the actual executed path
+            argv[0] = applicationName;
+            return ArgvToPowerShell(argv);
         }
-
-        // Determine if we need the call operator (&) and quoting
-        // We need it if:
-        // 1. The executable is an absolute path (contains : or starts with \ or /)
-        // 2. The executable contains spaces or special characters
-        var isAbsolutePath = executable.Contains(':') || executable.StartsWith('\\') || executable.StartsWith('/');
-        var needsQuoting = executable.Any(c =>
-                char.IsWhiteSpace(c) || c == '\'' || c == '"' || c == '`' || c == '$' || c == '&' || c == '|' || c == ';' ||
-                c == '<' || c == '>' || c == '(' || c == ')');
-        var needsCallOperator = isAbsolutePath || needsQuoting;
-
-        string executablePart;
-        if (needsCallOperator) {
-            // Use single quotes and escape any single quotes inside
-            var escaped = executable.Replace("'", "''");
-            executablePart = $"& '{escaped}'";
-        } else {
-            // Use the executable as-is
-            executablePart = executable;
-        }
-
-        // If there are arguments, append them
-        if (!string.IsNullOrEmpty(arguments)) {
-            return $"{executablePart} {arguments}";
-        }
-
-        return executablePart;
     }
 
-    private static string EscapeForPowerShell(string value) {
-        if (string.IsNullOrEmpty(value)) {
+    private static string ArgvToPowerShell(IEnumerable<string> argv) {
+        var invocation = string.Join(" ", argv.Select(arg => ToPowerShellLiteral(arg, true)));
+        // if exe path was quoted, we need to use the call operator (&)
+        return invocation.StartsWith('\'') ? $"& {invocation}" : invocation;
+    }
+
+    [GeneratedRegex(@"[a-zA-Z0-9_/\\:-]+")]
+    private static partial Regex BareArgumentRegex {get;}
+
+    private static string ToPowerShellLiteral(string? value, bool argument = false) {
+        if (value == null) {
+            return "$null";
+        }
+        if (value == "") {
             return "''";
         }
 
-        // Use single quotes and escape any single quotes inside
-        var escaped = value.Replace("'", "''");
-        return $"'{escaped}'";
+        if (argument && BareArgumentRegex.IsMatch(value)) {
+            return value; // no need to quote
+        }
+
+        // use single quotes and escape any single quotes inside
+        return $"'{value.Replace("'", "''")}'";
     }
 
-    private static string FormatEnvVarName(string varName) {
+    private static string ToPowerShellEnvVarLiteral(string varName) {
         // Check if the variable name is a valid PowerShell identifier
         // Valid identifiers: start with letter or underscore, followed by letters, digits, or underscores
         if (string.IsNullOrEmpty(varName)) {
@@ -494,116 +391,90 @@ public class ProcessNodeViewModel : INotifyPropertyChanged {
                 continue;
             }
 
-            if (diff.IsAdded) {
-                // Check if there's a corresponding removal (meaning the variable was changed)
-                var hasRemoval =
-                        differences.Any(d => d.Key.Equals(diff.Key, StringComparison.OrdinalIgnoreCase) && d.IsRemoved);
+            switch (diff.Kind) {
+                case EnvironmentVariableDiffKind.Added: {
+                    // Check if there's a corresponding removal (meaning the variable was changed)
+                    var hasRemoval = differences.Any(d =>
+                            d.Key.Equals(diff.Key, StringComparison.OrdinalIgnoreCase) &&
+                            d.Kind == EnvironmentVariableDiffKind.Removed);
 
-                if (hasRemoval) {
-                    // Changed variable - just set the new value
-                    var escapedValue = EscapeForPowerShell(diff.Value);
-                    var envVarName = FormatEnvVarName(diff.Key);
-                    lines.Add($"{envVarName} = {escapedValue}");
-                    processedKeys.Add(diff.Key);
-                } else {
-                    // New variable
-                    var escapedValue = EscapeForPowerShell(diff.Value);
-                    var envVarName = FormatEnvVarName(diff.Key);
-                    lines.Add($"{envVarName} = {escapedValue}");
-                    processedKeys.Add(diff.Key);
+                    if (hasRemoval) {
+                        // Changed variable - just set the new value
+                        var escapedValue = ToPowerShellLiteral(diff.Value);
+                        var envVarName = ToPowerShellEnvVarLiteral(diff.Key);
+                        lines.Add($"{envVarName} = {escapedValue}");
+                        processedKeys.Add(diff.Key);
+                    } else {
+                        // New variable
+                        var escapedValue = ToPowerShellLiteral(diff.Value);
+                        var envVarName = ToPowerShellEnvVarLiteral(diff.Key);
+                        lines.Add($"{envVarName} = {escapedValue}");
+                        processedKeys.Add(diff.Key);
+                    }
+                    break;
                 }
-            } else if (diff.IsRemoved) {
-                // Check if there's a corresponding addition (meaning the variable was changed)
-                var hasAddition =
-                        differences.Any(d => d.Key.Equals(diff.Key, StringComparison.OrdinalIgnoreCase) && d.IsAdded);
+                case EnvironmentVariableDiffKind.Removed: {
+                    // Check if there's a corresponding addition (meaning the variable was changed)
+                    var hasAddition =
+                            differences.Any(d =>
+                                    d.Key.Equals(diff.Key, StringComparison.OrdinalIgnoreCase) &&
+                                    d.Kind == EnvironmentVariableDiffKind.Added);
 
-                if (!hasAddition) {
-                    // Variable was deleted
-                    var envVarName = FormatEnvVarName(diff.Key);
-                    lines.Add($"{envVarName} = $null");
-                    processedKeys.Add(diff.Key);
+                    if (!hasAddition) {
+                        // Variable was deleted
+                        var envVarName = ToPowerShellEnvVarLiteral(diff.Key);
+                        lines.Add($"{envVarName} = $null");
+                        processedKeys.Add(diff.Key);
+                    }
+                    // If there's an addition, we'll process it when we encounter the added entry
+                    break;
                 }
-                // If there's an addition, we'll process it when we encounter the added entry
+                default:
+                    throw new SwitchExpressionException(diff.Kind);
             }
         }
 
-        return string.Join(Environment.NewLine, lines);
+        return string.Join("\n", lines);
     }
 
-    private static string
-            ConvertFullEnvironmentToPowerShell(IEnumerable<KeyValuePair<string, string>> environmentVariables) {
+    private static string ConvertFullEnvironmentToPowerShell(
+            IEnumerable<KeyValuePair<string, string>> environmentVariables) {
         var script = new StringBuilder();
 
-        // First, clear all existing environment variables
-        script.AppendLine("# Clear all existing environment variables");
-        script.AppendLine(
-                "Get-ChildItem Env: | ForEach-Object { Remove-Item -Path \"Env:$($_.Name)\" -ErrorAction SilentlyContinue }");
-        script.AppendLine();
-
-        // Then set all the process environment variables
-        script.AppendLine("# Set environment variables to match the process");
+        script.AppendLine("ls Env: | rm");
         foreach (var kv in environmentVariables) {
-            var escapedValue = EscapeForPowerShell(kv.Value);
-            var envVarName = FormatEnvVarName(kv.Key);
-            script.AppendLine($"{envVarName} = {escapedValue}");
+            script.AppendLine($"{ToPowerShellEnvVarLiteral(kv.Key)} = {ToPowerShellLiteral(kv.Value)}");
         }
 
         return script.ToString();
     }
 
-    private static string ConvertFullInvocationToPowerShell(string? applicationName,
-            IEnumerable<KeyValuePair<string, string>> environmentVariables,
-            string? workingDirectory, string? commandLine) {
+    private static string ConvertFullInvocationToPowerShell(string applicationName,
+            IEnumerable<KeyValuePair<string, string>> environmentVariables, string workingDirectory, string commandLine) {
         var script = new StringBuilder();
 
-        // First, clear all existing environment variables
-        script.AppendLine("# Clear all existing environment variables");
-        script.AppendLine(
-                "Get-ChildItem Env: | ForEach-Object { Remove-Item -Path \"Env:$($_.Name)\" -ErrorAction SilentlyContinue }");
-        script.AppendLine();
-
-        // Then set all the process environment variables
-        script.AppendLine("# Set environment variables to match the process");
+        script.AppendLine("ls Env: | rm");
         foreach (var kv in environmentVariables) {
-            var escapedValue = EscapeForPowerShell(kv.Value);
-            var envVarName = FormatEnvVarName(kv.Key);
-            script.AppendLine($"{envVarName} = {escapedValue}");
+            script.AppendLine($"{ToPowerShellEnvVarLiteral(kv.Key)} = {ToPowerShellLiteral(kv.Value)}");
         }
         script.AppendLine();
 
-        // Change to the working directory if specified
-        if (!string.IsNullOrWhiteSpace(workingDirectory)) {
-            script.AppendLine("# Change to working directory");
-            var escapedPath = EscapeForPowerShell(workingDirectory);
-            script.AppendLine($"Set-Location -Path {escapedPath}");
-            script.AppendLine();
-        }
+        script.AppendLine($"cd {ToPowerShellLiteral(workingDirectory, true)}");
+        script.AppendLine();
 
-        // Execute the command
-        if (!string.IsNullOrWhiteSpace(commandLine)) {
-            script.AppendLine("# Execute the command");
-            var powershellCmd = ConvertCommandLineToPowerShell(applicationName, commandLine);
-            script.AppendLine(powershellCmd);
-        }
+        script.AppendLine(ConvertCommandLineToPowerShell(applicationName, commandLine));
 
         return script.ToString();
     }
 
-    private static void LaunchInWinDbg(string? applicationName,
-            IEnumerable<KeyValuePair<string, string>>? environmentVariables,
-            string? workingDirectory, string? commandLine, bool breakOnStart) {
+    private static void LaunchInWinDbg(string applicationName,
+            IEnumerable<KeyValuePair<string, string>> environmentVariables, string workingDirectory, string commandLine,
+            bool breakOnStart) {
         if (string.IsNullOrWhiteSpace(commandLine)) {
             return;
         }
 
         try {
-            // Use the absolute path from applicationName
-            var executable = applicationName;
-            if (string.IsNullOrWhiteSpace(executable)) {
-                MessageBox.Show("Application path is not available.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
-            }
-
             // Parse the command line to extract arguments (skip argv[0])
             var text = commandLine.Trim();
             string arguments;
@@ -617,11 +488,7 @@ public class ProcessNodeViewModel : INotifyPropertyChanged {
                 }
             } else {
                 var spaceIndex = text.IndexOf(' ');
-                if (spaceIndex >= 0) {
-                    arguments = text[(spaceIndex + 1)..].TrimStart();
-                } else {
-                    arguments = "";
-                }
+                arguments = spaceIndex >= 0 ? text[(spaceIndex + 1)..].TrimStart() : "";
             }
 
             // Build WinDbg command line arguments
@@ -637,10 +504,10 @@ public class ProcessNodeViewModel : INotifyPropertyChanged {
             }
 
             // Add executable path
-            if (executable.Contains(' ') || executable.Contains('"')) {
-                windbgArgs.Append($"\"{executable}\"");
+            if (applicationName.Contains(' ') || applicationName.Contains('"')) {
+                windbgArgs.Append($"\"{applicationName}\"");
             } else {
-                windbgArgs.Append(executable);
+                windbgArgs.Append(applicationName);
             }
 
             // Add arguments if present
@@ -653,21 +520,14 @@ public class ProcessNodeViewModel : INotifyPropertyChanged {
             var startInfo = new System.Diagnostics.ProcessStartInfo {
                 FileName = "windbgx.exe",
                 Arguments = windbgArgs.ToString(),
-                UseShellExecute = false
+                UseShellExecute = false,
+                WorkingDirectory = workingDirectory
             };
 
-            // Set working directory if specified
-            if (!string.IsNullOrWhiteSpace(workingDirectory)) {
-                startInfo.WorkingDirectory = workingDirectory;
-            }
-
-            // Set environment variables
-            if (environmentVariables != null) {
-                // Clear default environment variables and set only the ones from the process
-                startInfo.Environment.Clear();
-                foreach (var kv in environmentVariables) {
-                    startInfo.Environment[kv.Key] = kv.Value;
-                }
+            // Set environment variables - clear default and set only the ones from the process
+            startInfo.Environment.Clear();
+            foreach (var kv in environmentVariables) {
+                startInfo.Environment[kv.Key] = kv.Value;
             }
 
             System.Diagnostics.Process.Start(startInfo);
@@ -676,9 +536,9 @@ public class ProcessNodeViewModel : INotifyPropertyChanged {
         }
     }
 
-    private static void LaunchInVisualStudio(string? applicationName,
-            IEnumerable<KeyValuePair<string, string>>? environmentVariables,
-            string? workingDirectory, string? commandLine) {
+    private static void LaunchInVisualStudio(string applicationName,
+            IEnumerable<KeyValuePair<string, string>> environmentVariables,
+            string workingDirectory, string commandLine) {
         if (string.IsNullOrWhiteSpace(commandLine)) {
             return;
         }
@@ -689,13 +549,6 @@ public class ProcessNodeViewModel : INotifyPropertyChanged {
             if (devenvPath == null) {
                 MessageBox.Show("Could not find Visual Studio installation. Please ensure Visual Studio is installed.",
                         "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
-            }
-
-            // Use the absolute path from applicationName
-            var executable = applicationName;
-            if (string.IsNullOrWhiteSpace(executable)) {
-                MessageBox.Show("Application path is not available.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
 
@@ -721,7 +574,7 @@ public class ProcessNodeViewModel : INotifyPropertyChanged {
             devenvArgs.Append("/DebugExe ");
 
             // Add executable path (always quote it for VS)
-            devenvArgs.Append($"\"{executable}\"");
+            devenvArgs.Append($"\"{applicationName}\"");
 
             // Add arguments if present
             if (!string.IsNullOrEmpty(arguments)) {
@@ -733,20 +586,14 @@ public class ProcessNodeViewModel : INotifyPropertyChanged {
             var startInfo = new System.Diagnostics.ProcessStartInfo {
                 FileName = devenvPath,
                 Arguments = devenvArgs.ToString(),
-                UseShellExecute = false
+                UseShellExecute = false,
+                WorkingDirectory = workingDirectory
             };
 
             // Set environment variables
-            if (environmentVariables != null) {
-                startInfo.Environment.Clear();
-                foreach (var kv in environmentVariables) {
-                    startInfo.Environment[kv.Key] = kv.Value;
-                }
-            }
-
-            // Set working directory
-            if (!string.IsNullOrWhiteSpace(workingDirectory)) {
-                startInfo.WorkingDirectory = workingDirectory;
+            startInfo.Environment.Clear();
+            foreach (var kv in environmentVariables) {
+                startInfo.Environment[kv.Key] = kv.Value;
             }
 
             System.Diagnostics.Process.Start(startInfo);

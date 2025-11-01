@@ -80,7 +80,7 @@ public partial class MainWindow {
         // Check for RichTextBox (in case it's used elsewhere)
         if (focusedElement is RichTextBox richTextBox) {
             var selection = richTextBox.Selection;
-            if (selection != null && !selection.IsEmpty) {
+            if (!selection.IsEmpty) {
                 return true;
             }
         }
@@ -98,7 +98,7 @@ public partial class MainWindow {
             } catch (OperationCanceledException) {
                 // expected on shutdown
             } catch (Exception ex) {
-                Dispatcher.Invoke(() => ShowError(ex));
+                Dispatcher.Invoke(() => ShowServerError(ex));
             }
         });
     }
@@ -113,9 +113,9 @@ public partial class MainWindow {
         }
     }
 
-    private void ShowError(Exception exception) {
+    private void ShowServerError(Exception exception) {
         MessageBox.Show(this,
-                $"An error occurred while processing log events:\n{exception.Message}",
+                $"An error occurred while processing log events:\n{exception.Message}\n{exception.StackTrace}",
                 "SpawnCamper.Server",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
