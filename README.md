@@ -6,7 +6,7 @@ The tool works by first spawning a named pipe server (written in C#) and then ru
 
 ---
 
-**Disclaimer:** The hook itself (the C++ part) and the parser on the server side were written by hand, and should be pretty solid. The GUI was vibecoded with a somewhat minimal understanding of the WPF implementation, since I don't really enjoy implementing UIs – it seems to work, but it's fairly plausible that it'll fall apart at the first edge case.
+**Disclaimer:** The hook itself (the C++ part) and the parser on the server side were written by hand, and should be pretty solid. The GUI was mostly vibecoded with a limited understanding of the WPF implementation, since I don't really enjoy implementing UIs – it mostly works, but you may very well find various edge cases where it breaks.
 
 ---
 
@@ -20,6 +20,6 @@ There are two ways to run SpawnCamper:
    ```pwsh
    .\bin\launcher.ps1 cmd /c exit
    ```
-   The launcher ensures that the server is running and then calls `SpawnCamper.exe` and forwards all arguments.
+   The launcher ensures that the server is running and then calls `SpawnCamper.exe` and forwards all arguments. Alternatively, pass a PowerShell scriptblock, which will be invoked in a new PowerShell session.
 
 2. Manually launch the GUI server by calling `.\bin\server\SpawnCamper.Server.exe`, then run the actual traced process by calling `.\bin\SpawnCamper.exe`, passing the command line to invoke.
