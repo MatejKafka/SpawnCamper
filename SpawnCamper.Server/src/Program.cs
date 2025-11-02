@@ -1,6 +1,4 @@
-﻿using SpawnCamper.Server.UI;
-
-namespace SpawnCamper.Server;
+﻿namespace SpawnCamper.Server;
 
 public static class Program {
     [STAThread]

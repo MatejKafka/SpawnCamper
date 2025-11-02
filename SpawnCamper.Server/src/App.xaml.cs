@@ -1,6 +1,6 @@
 using System.Windows;
 
-namespace SpawnCamper.Server.UI;
+namespace SpawnCamper.Server;
 
 public partial class App {
 	private MainWindow? _mainWindow;

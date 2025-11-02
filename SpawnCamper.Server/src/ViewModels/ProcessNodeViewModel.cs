@@ -216,27 +216,35 @@ public class ProcessNodeViewModel : INotifyPropertyChanged {
                 .ToString();
     }
 
+    /// <summary>
+    /// Extracts arguments from a command line, skipping argv[0] (the executable path).
+    /// </summary>
+    private static string ExtractArgumentsFromCommandLine(string commandLine) {
+        var text = commandLine.Trim();
+
+        if (text.Length == 0) {
+            return "";
+        }
+
+        if (text[0] == '"') {
+            var endQuote = text.IndexOf('"', 1);
+            if (endQuote > 1) {
+                return endQuote + 1 < text.Length ? text[(endQuote + 1)..].TrimStart() : "";
+            }
+            return "";
+        }
+
+        var spaceIndex = text.IndexOf(' ');
+        return spaceIndex >= 0 ? text[(spaceIndex + 1)..].TrimStart() : "";
+    }
+
     private static void LaunchInWinDbg(string applicationName, Dictionary<string, string> env, string workingDirectory,
             string commandLine, bool breakOnStart) {
         if (string.IsNullOrWhiteSpace(commandLine)) {
             return;
         }
 
-        // Parse the command line to extract arguments (skip argv[0])
-        var text = commandLine.Trim();
-        string arguments;
-
-        if (text[0] == '"') {
-            var endQuote = text.IndexOf('"', 1);
-            if (endQuote > 1) {
-                arguments = endQuote + 1 < text.Length ? text[(endQuote + 1)..].TrimStart() : "";
-            } else {
-                arguments = "";
-            }
-        } else {
-            var spaceIndex = text.IndexOf(' ');
-            arguments = spaceIndex >= 0 ? text[(spaceIndex + 1)..].TrimStart() : "";
-        }
+        var arguments = ExtractArgumentsFromCommandLine(commandLine);
 
         // Build WinDbg command line arguments
         var windbgArgs = new StringBuilder();
@@ -298,21 +306,7 @@ public class ProcessNodeViewModel : INotifyPropertyChanged {
             return;
         }
 
-        // Parse the command line to extract arguments (skip argv[0])
-        var text = commandLine.Trim();
-        string arguments;
-
-        if (text[0] == '"') {
-            var endQuote = text.IndexOf('"', 1);
-            if (endQuote > 1) {
-                arguments = endQuote + 1 < text.Length ? text[(endQuote + 1)..].TrimStart() : "";
-            } else {
-                arguments = "";
-            }
-        } else {
-            var spaceIndex = text.IndexOf(' ');
-            arguments = spaceIndex >= 0 ? text[(spaceIndex + 1)..].TrimStart() : "";
-        }
+        var arguments = ExtractArgumentsFromCommandLine(commandLine);
 
         // Build Visual Studio command line arguments
         // /DebugExe: Start debugging the specified executable

@@ -49,8 +49,6 @@ public record TracedProcess(
             throw new InvalidOperationException($"Cannot reassign property {propName} to null.");
         }
         prop = value;
-        // strip `ref ` or `out `
-        propName = propName[(propName.IndexOf(' ') + 1)..];
         PropertyChanged?.Invoke(this, new(propName));
     }
 }

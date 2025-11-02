@@ -49,8 +49,6 @@ public class MainWindowViewModel : INotifyPropertyChanged {
 
     private void UpdateProperty<T>(out T prop, T value, [CallerMemberName] string propName = "") {
         prop = value;
-        // strip `ref ` or `out `
-        propName = propName[(propName.IndexOf(' ') + 1)..];
         PropertyChanged?.Invoke(this, new(propName));
     }
 }

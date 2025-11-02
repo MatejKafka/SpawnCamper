@@ -14,14 +14,10 @@
     <Window.Resources>
         <Style x:Key="TreeToggleButtonStyle"
                TargetType="ToggleButton">
-            <Setter Property="Focusable"
-                    Value="False"/>
-            <Setter Property="Width"
-                    Value="16"/>
-            <Setter Property="Height"
-                    Value="16"/>
-            <Setter Property="Padding"
-                    Value="0"/>
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Width" Value="16" />
+            <Setter Property="Height" Value="16" />
+            <Setter Property="Padding" Value="0" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ToggleButton">
@@ -35,26 +31,24 @@
                                       Data="M5,4 L11,8 L5,12 Z"
                                       RenderTransformOrigin="0.5,0.5">
                                     <Path.RenderTransform>
-                                        <RotateTransform Angle="0"/>
+                                        <RotateTransform Angle="0" />
                                     </Path.RenderTransform>
                                 </Path>
                             </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsChecked"
-                                     Value="True">
+                            <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="Arrow"
                                         Property="RenderTransform">
                                     <Setter.Value>
-                                        <RotateTransform Angle="90"/>
+                                        <RotateTransform Angle="90" />
                                     </Setter.Value>
                                 </Setter>
                             </Trigger>
-                            <Trigger Property="IsEnabled"
-                                     Value="False">
+                            <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="Arrow"
                                         Property="Fill"
-                                        Value="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"/>
+                                        Value="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -64,31 +58,22 @@
 
         <Style x:Key="AlignedTreeViewItemStyle"
                TargetType="TreeViewItem">
-            <Setter Property="IsExpanded"
-                    Value="True"/>
-            <Setter Property="Background"
-                    Value="Transparent"/>
-            <Setter Property="BorderBrush"
-                    Value="Transparent"/>
-            <Setter Property="BorderThickness"
-                    Value="0"/>
-            <Setter Property="Padding"
-                    Value="0"/>
-            <Setter Property="Margin"
-                    Value="0"/>
-            <Setter Property="HorizontalContentAlignment"
-                    Value="Stretch"/>
-            <Setter Property="VirtualizingPanel.IsVirtualizing"
-                    Value="True"/>
-            <Setter Property="VirtualizingPanel.VirtualizationMode"
-                    Value="Recycling"/>
+            <Setter Property="IsExpanded" Value="True" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True" />
+            <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TreeViewItem">
                         <Grid SnapsToDevicePixels="True">
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
 
                             <Border x:Name="Bd"
@@ -100,38 +85,30 @@
                                 <ContentPresenter x:Name="PART_Header"
                                                   ContentSource="Header"
                                                   HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                                  SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                                                  SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
                             </Border>
 
                             <ItemsPresenter x:Name="ItemsHost"
                                             Grid.Row="1"
-                                            Margin="0"/>
+                                            Margin="0" />
                         </Grid>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsExpanded"
-                                     Value="False">
-                                <Setter TargetName="ItemsHost"
-                                        Property="Visibility"
-                                        Value="Collapsed"/>
+                            <Trigger Property="IsExpanded" Value="False">
+                                <Setter TargetName="ItemsHost" Property="Visibility" Value="Collapsed" />
                             </Trigger>
-                            <Trigger Property="HasItems"
-                                     Value="False">
-                                <Setter TargetName="ItemsHost"
-                                        Property="Visibility"
-                                        Value="Collapsed"/>
+                            <Trigger Property="HasItems" Value="False">
+                                <Setter TargetName="ItemsHost" Property="Visibility" Value="Collapsed" />
                             </Trigger>
-                            <Trigger Property="IsSelected"
-                                     Value="True">
+                            <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="Bd"
                                         Property="Background"
-                                        Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}"/>
+                                        Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}" />
                                 <Setter Property="Foreground"
-                                        Value="{DynamicResource {x:Static SystemColors.HighlightTextBrushKey}}"/>
+                                        Value="{DynamicResource {x:Static SystemColors.HighlightTextBrushKey}}" />
                             </Trigger>
-                            <Trigger Property="IsEnabled"
-                                     Value="False">
+                            <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Foreground"
-                                        Value="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"/>
+                                        Value="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -139,52 +116,66 @@
             </Setter>
         </Style>
 
-        <SolidColorBrush x:Key="DiffAddedBackgroundBrush"
-                         Color="#F0FBF4"/>
-        <SolidColorBrush x:Key="DiffAddedForegroundBrush"
-                         Color="#22863A"/>
-        <SolidColorBrush x:Key="DiffRemovedBackgroundBrush"
-                         Color="#FFF0F0"/>
-        <SolidColorBrush x:Key="DiffRemovedForegroundBrush"
-                         Color="#CB2431"/>
+        <SolidColorBrush x:Key="DiffAddedBackgroundBrush" Color="#F0FBF4" />
+        <SolidColorBrush x:Key="DiffAddedForegroundBrush" Color="#22863A" />
+        <SolidColorBrush x:Key="DiffRemovedBackgroundBrush" Color="#FFF0F0" />
+        <SolidColorBrush x:Key="DiffRemovedForegroundBrush" Color="#CB2431" />
 
         <converters:EnvironmentDifferencesToFlowDocumentConverter x:Key="EnvironmentDifferencesDocumentConverter"
                                                                   AddedForeground="{StaticResource DiffAddedForegroundBrush}"
                                                                   AddedBackground="{StaticResource DiffAddedBackgroundBrush}"
                                                                   RemovedForeground="{StaticResource DiffRemovedForegroundBrush}"
-                                                                  RemovedBackground="{StaticResource DiffRemovedBackgroundBrush}"/>
+                                                                  RemovedBackground="{StaticResource DiffRemovedBackgroundBrush}" />
 
-        <Style x:Key="SelectableTextBoxStyle"
-               TargetType="TextBox">
-            <Setter Property="IsReadOnly"
-                    Value="True"/>
-            <Setter Property="Background"
-                    Value="Transparent"/>
-            <Setter Property="BorderThickness"
-                    Value="0"/>
-            <Setter Property="Padding"
-                    Value="0"/>
-            <Setter Property="Margin"
-                    Value="0"/>
-            <Setter Property="VerticalContentAlignment"
-                    Value="Center"/>
-            <Setter Property="HorizontalAlignment"
-                    Value="Stretch"/>
-            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility"
-                    Value="Disabled"/>
-            <Setter Property="ScrollViewer.VerticalScrollBarVisibility"
-                    Value="Disabled"/>
-            <Setter Property="TextWrapping"
-                    Value="NoWrap"/>
-            <EventSetter Event="PreviewMouseLeftButtonDown"
-                         Handler="SelectableTextBox_OnPreviewMouseLeftButtonDown"/>
+        <!-- Reusable button style with hover effect -->
+        <Style x:Key="HoverButtonStyle"
+               TargetType="Button">
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Opacity" Value="0.8" />
+                </Trigger>
+            </Style.Triggers>
         </Style>
 
-        <Style x:Key="SelectableKeyTextBoxStyle"
-               TargetType="TextBox"
-               BasedOn="{StaticResource SelectableTextBoxStyle}">
-            <Setter Property="FontWeight"
-                    Value="SemiBold"/>
+        <!-- Reusable transparent icon button style with hover effect -->
+        <Style x:Key="TransparentIconButtonStyle" TargetType="Button">
+            <Setter Property="Opacity" Value="0.6" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Opacity" Value="1.0" />
+                    <Setter Property="Background" Value="#11000000" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Reusable copy icon button style -->
+        <Style x:Key="CopyIconButtonStyle" TargetType="Button" BasedOn="{StaticResource TransparentIconButtonStyle}">
+            <Setter Property="Content" Value="📋" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="6,2" />
+            <Setter Property="Margin" Value="6,0,0,0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FontSize" Value="14" />
+        </Style>
+
+        <Style x:Key="SelectableTextBoxStyle" TargetType="TextBox">
+            <Setter Property="IsReadOnly" Value="True" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Disabled" />
+            <Setter Property="TextWrapping" Value="NoWrap" />
+            <EventSetter Event="PreviewMouseLeftButtonDown" Handler="SelectableTextBox_OnPreviewMouseLeftButtonDown" />
+        </Style>
+
+        <Style x:Key="SelectableKeyTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource SelectableTextBoxStyle}">
+            <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
 
         <HierarchicalDataTemplate x:Key="ProcessNodeTemplate"
@@ -193,20 +184,16 @@
             <Border>
                 <Border.Style>
                     <Style TargetType="Border">
-                        <Setter Property="Background"
-                                Value="Transparent"/>
-                        <Setter Property="Padding"
-                                Value="0,1"/>
+                        <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="Padding" Value="0,1" />
                         <Style.Triggers>
                             <MultiDataTrigger>
                                 <MultiDataTrigger.Conditions>
-                                    <Condition Binding="{Binding HasFailed}"
-                                               Value="True"/>
-                                    <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=TreeViewItem}}"
-                                               Value="False"/>
+                                    <Condition Binding="{Binding HasFailed}" Value="True" />
+                                    <Condition
+                                        Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=TreeViewItem}}" Value="False" />
                                 </MultiDataTrigger.Conditions>
-                                <Setter Property="Background"
-                                        Value="#FFF0F0"/>
+                                <Setter Property="Background" Value="#FFF0F0" />
                             </MultiDataTrigger>
                         </Style.Triggers>
                     </Style>
@@ -215,21 +202,21 @@
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"
                                           MinWidth="220"
-                                          SharedSizeGroup="BinaryColumn"/>
+                                          SharedSizeGroup="BinaryColumn" />
                         <ColumnDefinition Width="90"
-                                          SharedSizeGroup="PidColumn"/>
+                                          SharedSizeGroup="PidColumn" />
                         <ColumnDefinition Width="90"
-                                          SharedSizeGroup="ExitColumn"/>
+                                          SharedSizeGroup="ExitColumn" />
                         <ColumnDefinition Width="*"
-                                          SharedSizeGroup="CommandColumn"/>
+                                          SharedSizeGroup="CommandColumn" />
                     </Grid.ColumnDefinitions>
 
                     <Grid Grid.Column="0"
                           VerticalAlignment="Center">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="{Binding IndentWidth}"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="{Binding IndentWidth}" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
 
                         <ToggleButton Grid.Column="1"
@@ -239,13 +226,11 @@
                             <ToggleButton.Style>
                                 <Style TargetType="ToggleButton"
                                        BasedOn="{StaticResource TreeToggleButtonStyle}">
-                                    <Setter Property="Visibility"
-                                            Value="Visible"/>
+                                    <Setter Property="Visibility" Value="Visible" />
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding HasItems, RelativeSource={RelativeSource AncestorType=TreeViewItem}}"
-                                                     Value="False">
-                                            <Setter Property="Visibility"
-                                                    Value="Hidden"/>
+                                        <DataTrigger
+                                            Binding="{Binding HasItems, RelativeSource={RelativeSource AncestorType=TreeViewItem}}" Value="False">
+                                            <Setter Property="Visibility" Value="Hidden" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -259,12 +244,12 @@
                                    Margin="0,0,12,0">
                             <TextBlock.ToolTip>
                                 <StackPanel>
-                                    <TextBlock Text="{Binding ApplicationName, TargetNullValue=(unknown)}"/>
+                                    <TextBlock Text="{Binding ApplicationName, TargetNullValue=(unknown)}" />
                                     <TextBlock Text="{Binding CommandLine, TargetNullValue=(no command line)}"
-                                               TextWrapping="Wrap"/>
+                                               TextWrapping="Wrap" />
                                 </StackPanel>
                             </TextBlock.ToolTip>
-                    </TextBlock>
+                        </TextBlock>
                     </Grid>
 
                     <TextBlock Grid.Column="1"
@@ -272,7 +257,7 @@
                                VerticalAlignment="Center"
                                FontFamily="Consolas"
                                HorizontalAlignment="Left"
-                               Margin="0,0,12,0"/>
+                               Margin="0,0,12,0" />
 
                     <Grid Grid.Column="2"
                           HorizontalAlignment="Left"
@@ -281,13 +266,10 @@
                                      IsIndeterminate="True">
                             <ProgressBar.Style>
                                 <Style TargetType="ProgressBar">
-                                    <Setter Property="Visibility"
-                                            Value="Collapsed"/>
+                                    <Setter Property="Visibility" Value="Collapsed" />
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsActive}"
-                                                     Value="True">
-                                            <Setter Property="Visibility"
-                                                    Value="Visible"/>
+                                        <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -299,13 +281,10 @@
                                    FontFamily="Consolas">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
-                                    <Setter Property="Visibility"
-                                            Value="Collapsed"/>
+                                    <Setter Property="Visibility" Value="Collapsed" />
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsActive}"
-                                                     Value="False">
-                                            <Setter Property="Visibility"
-                                                    Value="Visible"/>
+                                        <DataTrigger Binding="{Binding IsActive}" Value="False">
+                                            <Setter Property="Visibility" Value="Visible" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -316,7 +295,7 @@
                     <TextBlock Grid.Column="3"
                                Text="{Binding CommandLine}"
                                VerticalAlignment="Center"
-                               TextTrimming="CharacterEllipsis"/>
+                               TextTrimming="CharacterEllipsis" />
                 </Grid>
             </Border>
         </HierarchicalDataTemplate>
@@ -333,83 +312,83 @@
 
                     <Grid Margin="0,0,0,16">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="160"/>
-                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="160" />
+                            <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
                         <TextBlock Grid.Row="0"
                                    Grid.Column="0"
                                    Text="Process ID:"
-                                   FontWeight="SemiBold"/>
+                                   FontWeight="SemiBold" />
                         <TextBox Grid.Row="0"
                                  Grid.Column="1"
                                  Text="{Binding ProcessId, Mode=OneWay}"
-                                 Style="{StaticResource SelectableTextBoxStyle}"/>
+                                 Style="{StaticResource SelectableTextBoxStyle}" />
 
                         <TextBlock Grid.Row="1"
                                    Grid.Column="0"
                                    Text="Exit code:"
-                                   FontWeight="SemiBold"/>
+                                   FontWeight="SemiBold" />
                         <TextBox Grid.Row="1"
                                  Grid.Column="1"
                                  Text="{Binding ExitStatusDisplay, Mode=OneWay}"
-                                 Style="{StaticResource SelectableTextBoxStyle}"/>
+                                 Style="{StaticResource SelectableTextBoxStyle}" />
 
                         <TextBlock Grid.Row="2"
                                    Grid.Column="0"
                                    Text="Start time:"
-                                   FontWeight="SemiBold"/>
+                                   FontWeight="SemiBold" />
                         <TextBox Grid.Row="2"
                                  Grid.Column="1"
                                  Text="{Binding AttachTimeDisplay, Mode=OneWay}"
-                                 Style="{StaticResource SelectableTextBoxStyle}"/>
+                                 Style="{StaticResource SelectableTextBoxStyle}" />
 
                         <TextBlock Grid.Row="3"
                                    Grid.Column="0"
                                    Text="End time:"
-                                   FontWeight="SemiBold"/>
+                                   FontWeight="SemiBold" />
                         <TextBox Grid.Row="3"
                                  Grid.Column="1"
                                  Text="{Binding DetachTimeDisplay, Mode=OneWay}"
-                                 Style="{StaticResource SelectableTextBoxStyle}"/>
+                                 Style="{StaticResource SelectableTextBoxStyle}" />
 
                         <TextBlock Grid.Row="4"
                                    Grid.Column="0"
                                    Text="Duration:"
-                                   FontWeight="SemiBold"/>
+                                   FontWeight="SemiBold" />
                         <TextBox Grid.Row="4"
                                  Grid.Column="1"
                                  Text="{Binding DurationDisplay, Mode=OneWay}"
-                                 Style="{StaticResource SelectableTextBoxStyle}"/>
+                                 Style="{StaticResource SelectableTextBoxStyle}" />
 
                         <TextBlock Grid.Row="5"
                                    Grid.Column="0"
                                    Text="Application:"
-                                   FontWeight="SemiBold"/>
+                                   FontWeight="SemiBold" />
                         <TextBox Grid.Row="5"
                                  Grid.Column="1"
                                  Text="{Binding ApplicationName, Mode=OneWay, TargetNullValue=(unknown)}"
                                  Style="{StaticResource SelectableTextBoxStyle}"
-                                 TextWrapping="Wrap"/>
+                                 TextWrapping="Wrap" />
 
                         <TextBlock Grid.Row="6"
                                    Grid.Column="0"
                                    Text="Working directory:"
-                                   FontWeight="SemiBold"/>
+                                   FontWeight="SemiBold" />
                         <TextBox Grid.Row="6"
                                  Grid.Column="1"
                                  Text="{Binding WorkingDirectory, Mode=OneWay, TargetNullValue=(not reported)}"
                                  Style="{StaticResource SelectableTextBoxStyle}"
-                                 TextWrapping="Wrap"/>
+                                 TextWrapping="Wrap" />
                     </Grid>
 
                     <StackPanel Orientation="Horizontal"
@@ -422,19 +401,8 @@
                                 BorderThickness="1"
                                 Padding="8,4"
                                 Cursor="Hand"
-                                ToolTip="Copy complete PowerShell script with environment, working directory, and command">
-                            <Button.Style>
-                                <Style TargetType="Button">
-                                    <Style.Triggers>
-                                        <Trigger Property="IsMouseOver"
-                                                 Value="True">
-                                            <Setter Property="Background"
-                                                    Value="#D8D8D8"/>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Button.Style>
-                        </Button>
+                                Style="{StaticResource HoverButtonStyle}"
+                                ToolTip="Copy complete PowerShell script with environment, working directory, and command" />
 
 
                         <!-- Split WinDbg button - visually combined but two separate clickable areas -->
@@ -444,9 +412,9 @@
                                 Margin="8,0,0,0">
                             <Grid>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="1"/>
-                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="1" />
+                                    <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
 
                                 <!-- Main button - Launch in WinDbg (auto-run) -->
@@ -458,24 +426,13 @@
                                         BorderThickness="0"
                                         Padding="8,4"
                                         Cursor="Hand"
-                                        ToolTip="Launch in WinDbg (auto-run)">
-                                    <Button.Style>
-                                        <Style TargetType="Button">
-                                            <Style.Triggers>
-                                                <Trigger Property="IsMouseOver"
-                                                         Value="True">
-                                                    <Setter Property="Background"
-                                                            Value="#D8E8D8"/>
-                                                </Trigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Button.Style>
-                                </Button>
+                                        Style="{StaticResource HoverButtonStyle}"
+                                        ToolTip="Launch in WinDbg (auto-run)" />
 
                                 <!-- Separator -->
                                 <Rectangle Grid.Column="1"
                                            Fill="#CCCCCC"
-                                           Width="1"/>
+                                           Width="1" />
 
                                 <!-- Secondary button - Break on start -->
                                 <Button Grid.Column="2"
@@ -486,19 +443,8 @@
                                         BorderThickness="0"
                                         Padding="6,4"
                                         Cursor="Hand"
-                                        ToolTip="Launch in WinDbg and break on process start">
-                                    <Button.Style>
-                                        <Style TargetType="Button">
-                                            <Style.Triggers>
-                                                <Trigger Property="IsMouseOver"
-                                                         Value="True">
-                                                    <Setter Property="Background"
-                                                            Value="#D8E8D8"/>
-                                                </Trigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Button.Style>
-                                </Button>
+                                        Style="{StaticResource HoverButtonStyle}"
+                                        ToolTip="Launch in WinDbg and break on process start" />
                             </Grid>
                         </Border>
 
@@ -510,47 +456,24 @@
                                 BorderThickness="1"
                                 Padding="8,4"
                                 Margin="8,0,0,0"
-                                ToolTip="Launch in Visual Studio debugger"/>
+                                ToolTip="Launch in Visual Studio debugger" />
                     </StackPanel>
 
                     <StackPanel Margin="0,0,0,16">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="Command line"
                                        FontWeight="SemiBold"
-                                       VerticalAlignment="Center"/>
-                            <Button Content="📋"
-                                    Command="{Binding CopyCommandLineAsPowerShellCommand}"
-                                    VerticalAlignment="Center"
-                                    Background="Transparent"
-                                    BorderThickness="0"
-                                    Padding="6,2"
-                                    Margin="6,0,0,0"
-                                    Cursor="Hand"
+                                       VerticalAlignment="Center" />
+                            <Button Command="{Binding CopyCommandLineAsPowerShellCommand}"
                                     ToolTip="Copy as PowerShell"
-                                    FontSize="14">
-                                <Button.Style>
-                                    <Style TargetType="Button">
-                                        <Setter Property="Opacity"
-                                                Value="0.6"/>
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver"
-                                                     Value="True">
-                                                <Setter Property="Opacity"
-                                                        Value="1.0"/>
-                                                <Setter Property="Background"
-                                                        Value="#11000000"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Button.Style>
-                            </Button>
+                                    Style="{StaticResource CopyIconButtonStyle}" />
                         </StackPanel>
                         <Border Background="#11000000"
                                 Padding="8"
                                 Margin="0,4,0,0">
                             <TextBox Text="{Binding CommandLine, Mode=OneWay}"
                                      Style="{StaticResource SelectableTextBoxStyle}"
-                                     TextWrapping="Wrap"/>
+                                     TextWrapping="Wrap" />
                         </Border>
                     </StackPanel>
 
@@ -558,58 +481,33 @@
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="Environment differences"
                                        FontWeight="SemiBold"
-                                       VerticalAlignment="Center"/>
-                            <Button Content="📋"
-                                    Command="{Binding CopyEnvironmentDifferencesAsPowerShellCommand}"
-                                    VerticalAlignment="Center"
-                                    Background="Transparent"
-                                    BorderThickness="0"
-                                    Padding="6,2"
-                                    Margin="6,0,0,0"
-                                    Cursor="Hand"
+                                       VerticalAlignment="Center" />
+                            <Button Command="{Binding CopyEnvironmentDifferencesAsPowerShellCommand}"
                                     ToolTip="Copy as PowerShell"
-                                    FontSize="14">
-                                <Button.Style>
-                                    <Style TargetType="Button">
-                                        <Setter Property="Opacity"
-                                                Value="0.6"/>
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver"
-                                                     Value="True">
-                                                <Setter Property="Opacity"
-                                                        Value="1.0"/>
-                                                <Setter Property="Background"
-                                                        Value="#11000000"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Button.Style>
-                            </Button>
+                                    Style="{StaticResource CopyIconButtonStyle}" />
                         </StackPanel>
                         <Border Background="Transparent"
                                 Padding="0"
                                 Margin="0,4,0,0">
                             <Border.Style>
                                 <Style TargetType="Border">
-                                    <Setter Property="Visibility"
-                                            Value="Collapsed"/>
+                                    <Setter Property="Visibility" Value="Collapsed" />
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding HasEnvironmentDifferences}"
-                                                     Value="True">
-                                            <Setter Property="Visibility"
-                                                    Value="Visible"/>
+                                        <DataTrigger Binding="{Binding HasEnvironmentDifferences}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
                             </Border.Style>
-                            <FlowDocumentScrollViewer Document="{Binding EnvironmentDifferences, Converter={StaticResource EnvironmentDifferencesDocumentConverter}}"
-                                                      Background="Transparent"
-                                                      Padding="0"
-                                                      IsToolBarVisible="False"
-                                                      Zoom="100"
-                                                      HorizontalScrollBarVisibility="Disabled"
-                                                      VerticalScrollBarVisibility="Disabled"
-                                                      PreviewMouseWheel="FlowDocumentScrollViewer_OnPreviewMouseWheel"/>
+                            <FlowDocumentScrollViewer
+                                Document="{Binding EnvironmentDifferences, Converter={StaticResource EnvironmentDifferencesDocumentConverter}}"
+                                Background="Transparent"
+                                Padding="0"
+                                IsToolBarVisible="False"
+                                Zoom="100"
+                                HorizontalScrollBarVisibility="Disabled"
+                                VerticalScrollBarVisibility="Disabled"
+                                PreviewMouseWheel="FlowDocumentScrollViewer_OnPreviewMouseWheel" />
                         </Border>
 
                         <TextBlock Text="(matches parent environment)"
@@ -618,18 +516,13 @@
                                    HorizontalAlignment="Center">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
-                                    <Setter Property="Visibility"
-                                            Value="Collapsed"/>
+                                    <Setter Property="Visibility" Value="Collapsed" />
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding HasEnvironmentDifferences}"
-                                                     Value="False">
-                                            <Setter Property="Visibility"
-                                                    Value="Visible"/>
+                                        <DataTrigger Binding="{Binding HasEnvironmentDifferences}" Value="False">
+                                            <Setter Property="Visibility" Value="Visible" />
                                         </DataTrigger>
-                                        <DataTrigger Binding="{Binding HasEnvironment}"
-                                                     Value="False">
-                                            <Setter Property="Visibility"
-                                                    Value="Collapsed"/>
+                                        <DataTrigger Binding="{Binding HasEnvironment}" Value="False">
+                                            <Setter Property="Visibility" Value="Collapsed" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -642,13 +535,10 @@
                                    HorizontalAlignment="Center">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
-                                    <Setter Property="Visibility"
-                                            Value="Collapsed"/>
+                                    <Setter Property="Visibility" Value="Collapsed" />
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding HasEnvironment}"
-                                                     Value="False">
-                                            <Setter Property="Visibility"
-                                                    Value="Visible"/>
+                                        <DataTrigger Binding="{Binding HasEnvironment}" Value="False">
+                                            <Setter Property="Visibility" Value="Visible" />
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -660,10 +550,8 @@
                         <Expander.Style>
                             <Style TargetType="Expander">
                                 <Style.Triggers>
-                                    <DataTrigger Binding="{Binding HasEnvironment}"
-                                                 Value="False">
-                                        <Setter Property="Visibility"
-                                                Value="Collapsed"/>
+                                    <DataTrigger Binding="{Binding HasEnvironment}" Value="False">
+                                        <Setter Property="Visibility" Value="Collapsed" />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -672,33 +560,10 @@
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="Full environment"
                                            FontWeight="SemiBold"
-                                           VerticalAlignment="Center"/>
-                                <Button Content="📋"
-                                        Command="{Binding CopyFullEnvironmentAsPowerShellCommand}"
-                                        VerticalAlignment="Center"
-                                        Background="Transparent"
-                                        BorderThickness="0"
-                                        Padding="6,2"
-                                        Margin="6,0,0,0"
-                                        Cursor="Hand"
+                                           VerticalAlignment="Center" />
+                                <Button Command="{Binding CopyFullEnvironmentAsPowerShellCommand}"
                                         ToolTip="Copy as PowerShell (clears all existing variables)"
-                                        FontSize="14">
-                                    <Button.Style>
-                                        <Style TargetType="Button">
-                                            <Setter Property="Opacity"
-                                                    Value="0.6"/>
-                                            <Style.Triggers>
-                                                <Trigger Property="IsMouseOver"
-                                                         Value="True">
-                                                    <Setter Property="Opacity"
-                                                            Value="1.0"/>
-                                                    <Setter Property="Background"
-                                                            Value="#11000000"/>
-                                                </Trigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Button.Style>
-                                </Button>
+                                        Style="{StaticResource CopyIconButtonStyle}" />
                             </StackPanel>
                         </Expander.Header>
                         <Border Background="#11000000"
@@ -710,17 +575,17 @@
                                         <DataTemplate>
                                             <Grid Margin="0,0,0,2">
                                                 <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
                                                 </Grid.ColumnDefinitions>
                                                 <TextBox Grid.Column="0"
                                                          Text="{Binding Key, Mode=OneWay}"
                                                          Style="{StaticResource SelectableKeyTextBoxStyle}"
-                                                         Margin="0,0,8,0"/>
+                                                         Margin="0,0,8,0" />
                                                 <TextBox Grid.Column="1"
                                                          Text="{Binding Value, Mode=OneWay}"
                                                          Style="{StaticResource SelectableTextBoxStyle}"
-                                                         TextWrapping="Wrap"/>
+                                                         TextWrapping="Wrap" />
                                             </Grid>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
@@ -735,8 +600,8 @@
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="3*"/>
-            <ColumnDefinition Width="2*"/>
+            <ColumnDefinition Width="3*" />
+            <ColumnDefinition Width="2*" />
         </Grid.ColumnDefinitions>
 
         <Border Grid.Column="0"
@@ -745,8 +610,8 @@
                 Background="White">
             <Grid Grid.IsSharedSizeScope="True">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
                 <Border Grid.Row="0"
@@ -756,26 +621,26 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"
                                               MinWidth="220"
-                                              SharedSizeGroup="BinaryColumn"/>
+                                              SharedSizeGroup="BinaryColumn" />
                             <ColumnDefinition Width="90"
-                                              SharedSizeGroup="PidColumn"/>
+                                              SharedSizeGroup="PidColumn" />
                             <ColumnDefinition Width="90"
-                                              SharedSizeGroup="ExitColumn"/>
+                                              SharedSizeGroup="ExitColumn" />
                             <ColumnDefinition Width="*"
-                                              SharedSizeGroup="CommandColumn"/>
+                                              SharedSizeGroup="CommandColumn" />
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0"
                                    Text="Binary"
-                                   FontWeight="Bold"/>
+                                   FontWeight="Bold" />
                         <TextBlock Grid.Column="1"
                                    Text="PID"
-                                   FontWeight="Bold"/>
+                                   FontWeight="Bold" />
                         <TextBlock Grid.Column="2"
                                    Text="Exit"
-                                   FontWeight="Bold"/>
+                                   FontWeight="Bold" />
                         <TextBlock Grid.Column="3"
                                    Text="Command Line"
-                                   FontWeight="Bold"/>
+                                   FontWeight="Bold" />
                     </Grid>
                 </Border>
 
@@ -792,7 +657,7 @@
                           VirtualizingPanel.VirtualizationMode="Recycling"
                           VirtualizingPanel.CacheLength="1,1"
                           VirtualizingPanel.CacheLengthUnit="Page"
-                          Background="White"/>
+                          Background="White" />
             </Grid>
         </Border>
 
@@ -806,13 +671,10 @@
                            VerticalAlignment="Center">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
-                            <Setter Property="Visibility"
-                                    Value="Collapsed"/>
+                            <Setter Property="Visibility" Value="Collapsed" />
                             <Style.Triggers>
-                                <DataTrigger Binding="{Binding SelectedProcess}"
-                                             Value="{x:Null}">
-                                    <Setter Property="Visibility"
-                                            Value="Visible"/>
+                                <DataTrigger Binding="{Binding SelectedProcess}" Value="{x:Null}">
+                                    <Setter Property="Visibility" Value="Visible" />
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
@@ -822,13 +684,10 @@
                 <ContentControl Content="{Binding SelectedProcess}">
                     <ContentControl.Style>
                         <Style TargetType="ContentControl">
-                            <Setter Property="Visibility"
-                                    Value="Visible"/>
+                            <Setter Property="Visibility" Value="Visible" />
                             <Style.Triggers>
-                                <DataTrigger Binding="{Binding SelectedProcess}"
-                                             Value="{x:Null}">
-                                    <Setter Property="Visibility"
-                                            Value="Collapsed"/>
+                                <DataTrigger Binding="{Binding SelectedProcess}" Value="{x:Null}">
+                                    <Setter Property="Visibility" Value="Collapsed" />
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>

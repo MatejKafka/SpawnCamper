@@ -102,12 +102,9 @@ public partial class MainWindow {
         while (await _eventChannel.Reader.WaitToReadAsync(token)) {
             // batch-process all available events; WPF will only re-render the UI once we let go of the UI thread,
             //  so this effectively batches the processing to avoid expensive repaints
-            var i = 0;
             while (_eventChannel.Reader.TryRead(out var e)) {
-                i++;
                 _processTree.HandleEvent(e);
             }
-            Console.Error.WriteLine($"events: {i}");
         }
     }
 
@@ -307,12 +304,12 @@ public partial class MainWindow {
     }
 
     private TreeViewItem? FindTreeViewItem(ProcessNodeViewModel target) {
-        if (ProcessTree?.ItemContainerGenerator.ContainerFromItem(target) is TreeViewItem direct) {
-            return direct;
-        }
-
         if (ProcessTree == null) {
             return null;
+        }
+
+        if (ProcessTree.ItemContainerGenerator.ContainerFromItem(target) is TreeViewItem direct) {
+            return direct;
         }
 
         foreach (var item in ProcessTree.Items) {
