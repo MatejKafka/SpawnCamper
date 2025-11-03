@@ -33,12 +33,12 @@ add_library(hook SHARED src/lib.cpp)
 # https://github.com/microsoft/Detours/wiki/OverviewHelpers
 target_link_options(hook PRIVATE "/export:DetourFinishHelperProcess,@1,NONAME")
 
-add_executable(SpawnCamper src/main.cpp)
-add_dependencies(SpawnCamper hook)
+add_executable(SpawnCamper.Client src/main.cpp)
+add_dependencies(SpawnCamper.Client hook)
 
 if(CMAKE_SIZEOF_VOID_P EQUAL 8)
     set_target_properties(hook PROPERTIES OUTPUT_NAME "hook64")
 elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
-    set_target_properties(SpawnCamper PROPERTIES RUNTIME_OUTPUT_DIRECTORY ".")
+    set_target_properties(SpawnCamper.Client PROPERTIES RUNTIME_OUTPUT_DIRECTORY ".")
     set_target_properties(hook PROPERTIES OUTPUT_NAME "hook32")
 endif()

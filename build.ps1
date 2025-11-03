@@ -8,6 +8,7 @@ if (-not $DevShellPath) {
 }
 
 if (Test-Path $PSScriptRoot\bin) {
+    Write-Host "Removing output directory..."
     rm -Recurse $PSScriptRoot\bin
 }
 
@@ -35,5 +36,5 @@ pwsh -NoProfile -WorkingDirectory $PSScriptRoot {
 }
 
 Write-Host ""
-Write-Host "Copying 'launcher.ps1'..."
-cp $PSScriptRoot\launcher.ps1 $PSScriptRoot\bin\launcher.ps1
+Write-Host "Copying launcher..."
+cp $PSScriptRoot\launcher.ps1 $PSScriptRoot\bin\SpawnCamper.ps1

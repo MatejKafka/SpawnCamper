@@ -23,7 +23,7 @@ if (Test-Path \\.\\pipe\\SpawnCamper) {
 if (@($Args).Count -eq 1 -and $Args[0] -is [scriptblock]) {
 	# if launching a scriptblock, run a new instance of PowerShell under the tracer
 	$PwshExe = (Get-Process -Id $PID).Path
-	& $PSScriptRoot\SpawnCamper.exe $PwshExe -noprofile @Args
+	& $PSScriptRoot\SpawnCamper.Client.exe $PwshExe -noprofile @Args
 } else {
-	& $PSScriptRoot\SpawnCamper.exe @Args
+	& $PSScriptRoot\SpawnCamper.Client.exe @Args
 }

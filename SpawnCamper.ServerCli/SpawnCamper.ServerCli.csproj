@@ -1,19 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PublishSingleFile>true</PublishSingleFile>
+    <PublishDir>../bin</PublishDir>
 
-    <PropertyGroup>
-        <OutputType>Exe</OutputType>
-        <TargetFramework>net10.0</TargetFramework>
-        <ImplicitUsings>enable</ImplicitUsings>
-        <Nullable>enable</Nullable>
-        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-        <PublishSingleFile>true</PublishSingleFile>
-        <PublishDir>../bin/server-cli</PublishDir>
-        <!-- Suppress trimming warnings since we're not using PublishTrimmed -->
-        <NoWarn>$(NoWarn);IL2026;IL3050</NoWarn>
-    </PropertyGroup>
+    <!-- Suppress trimming warnings since we're not using PublishTrimmed -->
+    <NoWarn>$(NoWarn);IL2026;IL3050</NoWarn>
+  </PropertyGroup>
 
-    <ItemGroup>
-        <ProjectReference Include="..\SpawnCamper.ServerCore\SpawnCamper.ServerCore.csproj" />
-    </ItemGroup>
-
+  <ItemGroup>
+    <ProjectReference Include="..\SpawnCamper.ServerCore\SpawnCamper.ServerCore.csproj" />
+  </ItemGroup>
 </Project>

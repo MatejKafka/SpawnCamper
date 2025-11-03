@@ -5,17 +5,15 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PublishSingleFile>true</PublishSingleFile>
+    <PublishDir>../bin</PublishDir>
+
     <UseWPF>true</UseWPF>
     <GenerateAppMain>false</GenerateAppMain>
-    <PublishSingleFile>true</PublishSingleFile>
-    <PublishDir>../bin/server</PublishDir>
   </PropertyGroup>
 
   <ItemGroup>
-    <ApplicationDefinition Update="src\UI\App.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </ApplicationDefinition>
+    <ProjectReference Include="..\SpawnCamper.ServerCore\SpawnCamper.ServerCore.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -29,9 +27,5 @@
       <XamlRuntime>Wpf</XamlRuntime>
       <SubType>Designer</SubType>
     </Page>
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\SpawnCamper.ServerCore\SpawnCamper.ServerCore.csproj" />
   </ItemGroup>
 </Project>
