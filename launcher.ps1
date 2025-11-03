@@ -1,5 +1,16 @@
+[CmdletBinding()]
+param(
+	[Parameter(Mandatory)]
+	$Command,
+
+	[Parameter(ValueFromRemainingArguments)]
+	[string[]]
+	$Arguments = @()
+)
+
 Set-StrictMode -Version 3
 $ErrorActionPreference = "Stop"
+
 
 # resolve real path in case this file is symlinked
 $Path = Get-Item $PSCommandPath
@@ -9,10 +20,11 @@ while ($Path.Target) {
 $PSCommandPath = $Path.FullName
 $PSScriptRoot = $Path.Directory.FullName
 
+
 if (Test-Path \\.\\pipe\\SpawnCamper) {
 	Write-Host "SpawnCamper server is already running, connecting to the existing instance..."
 } else {
-    Start-Process $PSScriptRoot\server\SpawnCamper.Server.exe
+    Start-Process $PSScriptRoot\SpawnCamper.Server.exe
     # wait for the named pipe server to start
     while (-not (Test-Path \\.\\pipe\\SpawnCamper)) {
         sleep 0.1
@@ -20,10 +32,10 @@ if (Test-Path \\.\\pipe\\SpawnCamper) {
 }
 
 
-if (@($Args).Count -eq 1 -and $Args[0] -is [scriptblock]) {
+if ($Command -is [scriptblock]) {
 	# if launching a scriptblock, run a new instance of PowerShell under the tracer
 	$PwshExe = (Get-Process -Id $PID).Path
-	& $PSScriptRoot\SpawnCamper.Client.exe $PwshExe -noprofile @Args
+	& $PSScriptRoot\SpawnCamper.Tracer.exe $PwshExe -noprofile $Command @Arguments
 } else {
-	& $PSScriptRoot\SpawnCamper.Client.exe @Args
+	& $PSScriptRoot\SpawnCamper.Tracer.exe $Command @Arguments
 }

@@ -1,3 +1,5 @@
+param([switch]$Release)
+
 $DevShellPath = "18", "2022" | % {
     "${env:ProgramFiles}\Microsoft Visual Studio\$_\Insiders\Common7\Tools\Launch-VsDevShell.ps1"
     "${env:ProgramFiles(x86)}\Microsoft Visual Studio\$_\Insiders\Common7\Tools\Launch-VsDevShell.ps1"
@@ -20,9 +22,9 @@ if (Test-Path $PSScriptRoot\bin) {
         Write-Host "Building hook for $Arch..."
         & $DevShellPath -Arch $Arch -SkipAutomaticLocation
 
-        $BuildDir = ".\SpawnCamper.Client\cmake-build-release-$Arch"
+        $BuildDir = ".\SpawnCamper.Tracer\cmake-build-release-$Arch"
         if (-not (Test-Path $BuildDir)) {
-            cmake -S .\SpawnCamper.Client -B $BuildDir -DCMAKE_BUILD_TYPE=Release -G Ninja
+            cmake -S .\SpawnCamper.Tracer -B $BuildDir -DCMAKE_BUILD_TYPE=Release -G Ninja
         }
         cmake --build $BuildDir
     }
@@ -38,3 +40,8 @@ pwsh -NoProfile -WorkingDirectory $PSScriptRoot {
 Write-Host ""
 Write-Host "Copying launcher..."
 cp $PSScriptRoot\launcher.ps1 $PSScriptRoot\bin\SpawnCamper.ps1
+
+
+if ($Release) {
+	Compress-Archive .\bin\* .\bin\SpawnCamper-x64.zip -CompressionLevel Optimal -Force
+}

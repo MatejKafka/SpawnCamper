@@ -16,10 +16,10 @@ The tool works by first spawning a named pipe server (written in C#) and then ru
 
 There are two ways to run SpawnCamper:
 
-1. Invoke `launcher.ps1` from PowerShell, pass the command to invoke as arguments:
+1. Invoke `SpawnCamper.ps1` from PowerShell, pass the command to invoke as arguments:
    ```pwsh
-   .\bin\launcher.ps1 cmd /c exit
+   .\SpawnCamper.ps1 cmd /c exit
    ```
-   The launcher ensures that the server is running and then calls `SpawnCamper.exe` and forwards all arguments. Alternatively, pass a PowerShell scriptblock, which will be invoked in a new PowerShell session.
+   The launcher ensures that the server is running and then calls `SpawnCamper.Tracer.exe` and forwards all arguments. Alternatively, pass a PowerShell scriptblock, which will be invoked in a new PowerShell session.
 
-2. Manually launch the GUI server by calling `.\bin\server\SpawnCamper.Server.exe`, then run the actual traced process by calling `.\bin\SpawnCamper.exe`, passing the command line to invoke.
+2. Manually launch the GUI server by calling `.\SpawnCamper.Server.exe`, then run the actual traced process through `.\SpawnCamper.Tracer.exe`, passing the command line to invoke.
