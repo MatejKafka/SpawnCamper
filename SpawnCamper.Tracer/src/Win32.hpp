@@ -1,6 +1,5 @@
 #pragma once
 
-#include <expected>
 #include <system_error>
 #include <filesystem>
 #include <span>
@@ -67,8 +66,6 @@ namespace Win32 {
         DWORD dwFlagsAndAttributes = 0,
         HANDLE hTemplateFile = nullptr
     ) {
-        std::expected<int, Win32Error> x;
-
         auto handle = ::CreateFileW(
             lpFileName.c_str(),
             dwDesiredAccess,
