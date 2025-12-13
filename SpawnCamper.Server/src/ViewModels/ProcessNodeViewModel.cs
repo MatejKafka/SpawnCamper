@@ -110,7 +110,7 @@ public class ProcessNodeViewModel : INotifyPropertyChanged {
         get {
             if (IsActive) return "Running...";
             if (ExitCode.HasValue) return ExitCode.Value.ToString();
-            if (IsDetached) return "Unknown (terminated)";
+            if (IsDetached) return "Terminated";
             return "—";
         }
     }

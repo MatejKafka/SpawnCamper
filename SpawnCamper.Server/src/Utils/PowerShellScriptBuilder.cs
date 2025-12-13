@@ -84,7 +84,7 @@ public partial class PowerShellScriptBuilder {
         return _sb.ToString().Trim();
     }
 
-    [GeneratedRegex(@"[a-zA-Z0-9_/\\:-]+")]
+    [GeneratedRegex(@"^[a-zA-Z0-9_/\\:=-]+$")]
     private static partial Regex BareArgumentRegex();
 
     private static string ToPowerShellLiteral(string? value, bool argument = false) {
